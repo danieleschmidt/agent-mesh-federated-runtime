@@ -1,0 +1,161 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Main Application",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/main.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "ENVIRONMENT": "development",
+        "LOG_LEVEL": "DEBUG"
+      },
+      "args": ["--debug"]
+    },
+    {
+      "name": "Python: API Server",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "src.api.main:app",
+        "--reload",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--log-level",
+        "debug"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "ENVIRONMENT": "development"
+      }
+    },
+    {
+      "name": "Python: Mesh Node",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/mesh/node.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "ENVIRONMENT": "development",
+        "LOG_LEVEL": "DEBUG"
+      },
+      "args": [
+        "--node-id",
+        "debug-node-001",
+        "--listen-addr",
+        "/ip4/127.0.0.1/tcp/4001"
+      ]
+    },
+    {
+      "name": "Python: Federated Trainer",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/federated/trainer.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "ENVIRONMENT": "development",
+        "LOG_LEVEL": "DEBUG"
+      },
+      "args": [
+        "--config",
+        "configs/development/federated.yaml"
+      ]
+    },
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Python: Test Current File",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "${file}",
+        "-v",
+        "-s"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Python: Integration Tests",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/integration/",
+        "-v",
+        "-s"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "ENVIRONMENT": "testing"
+      }
+    },
+    {
+      "name": "Docker: Attach to Container",
+      "type": "python",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "/app"
+        }
+      ]
+    },
+    {
+      "name": "Python: Profile Performance",
+      "type": "python",
+      "request": "launch",
+      "module": "cProfile",
+      "args": [
+        "-o",
+        "profile_output.prof",
+        "src/main.py"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Development Stack",
+      "configurations": [
+        "Python: API Server",
+        "Python: Mesh Node"
+      ]
+    }
+  ]
+}

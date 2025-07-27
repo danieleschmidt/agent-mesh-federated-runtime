@@ -1,0 +1,119 @@
+{
+  "name": "agent-mesh-federated-runtime",
+  "version": "1.0.0",
+  "description": "Decentralized peer-to-peer runtime for federated learning and multi-agent systems",
+  "main": "src/web/dashboard/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/agent-mesh-federated-runtime.git"
+  },
+  "keywords": [
+    "federated-learning",
+    "p2p",
+    "multi-agent",
+    "decentralized",
+    "byzantine-fault-tolerance",
+    "libp2p",
+    "consensus",
+    "mesh-network"
+  ],
+  "author": "Daniel Schmidt <daniel@terragon.ai>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/your-org/agent-mesh-federated-runtime/issues"
+  },
+  "homepage": "https://github.com/your-org/agent-mesh-federated-runtime#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:dashboard\"",
+    "dev:api": "python -m uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:dashboard": "cd src/web/dashboard && npm run dev",
+    "build": "npm run build:dashboard && python -m build",
+    "build:dashboard": "cd src/web/dashboard && npm run build",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "pytest tests/unit/ -v --cov=src --cov-report=html",
+    "test:integration": "pytest tests/integration/ -v",
+    "test:e2e": "pytest tests/e2e/ -v",
+    "test:performance": "pytest tests/performance/ -v --benchmark-only",
+    "test:watch": "pytest-watch tests/",
+    "lint": "npm run lint:python && npm run lint:js",
+    "lint:python": "flake8 src/ tests/ && mypy src/",
+    "lint:js": "cd src/web/dashboard && npm run lint",
+    "format": "npm run format:python && npm run format:js",
+    "format:python": "black src/ tests/ && isort src/ tests/",
+    "format:js": "cd src/web/dashboard && npm run format",
+    "security": "npm run security:python && npm run security:js",
+    "security:python": "bandit -r src/ && safety check",
+    "security:js": "cd src/web/dashboard && npm audit",
+    "docs": "npm run docs:build && npm run docs:serve",
+    "docs:build": "sphinx-build -b html docs/ docs/_build/html/",
+    "docs:serve": "python -m http.server 8080 --directory docs/_build/html/",
+    "docs:api": "sphinx-apidoc -o docs/api src/",
+    "clean": "npm run clean:python && npm run clean:js",
+    "clean:python": "find . -type d -name __pycache__ -delete && find . -type f -name '*.pyc' -delete && rm -rf .coverage htmlcov/ .pytest_cache/ dist/ build/ *.egg-info/",
+    "clean:js": "cd src/web/dashboard && npm run clean",
+    "install:dev": "pip install -e '.[dev]' && cd src/web/dashboard && npm install",
+    "setup": "npm run install:dev && pre-commit install",
+    "start": "python -m src.main",
+    "start:prod": "gunicorn src.api.main:app -w 4 -k uvicorn.workers.UvicornWorker",
+    "docker:build": "docker build -t agent-mesh:latest .",
+    "docker:run": "docker run -p 4001:4001 -p 5001:5001 -p 8000:8000 agent-mesh:latest",
+    "docker:compose": "docker-compose up -d",
+    "docker:compose:down": "docker-compose down",
+    "k8s:deploy": "kubectl apply -f k8s/",
+    "k8s:delete": "kubectl delete -f k8s/",
+    "benchmark": "python scripts/benchmark.py",
+    "monitor": "python scripts/monitor.py",
+    "generate:proto": "python -m grpc_tools.protoc --proto_path=proto --python_out=src --grpc_python_out=src proto/*.proto",
+    "migrate": "alembic upgrade head",
+    "seed": "python scripts/seed_data.py",
+    "backup": "python scripts/backup.py",
+    "restore": "python scripts/restore.py",
+    "health": "curl -f http://localhost:8080/health || exit 1",
+    "logs": "docker-compose logs -f",
+    "shell": "python -i scripts/shell.py",
+    "release": "semantic-release publish",
+    "release:dry": "semantic-release publish --dry-run"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "semantic-release": "^21.1.1"
+  },
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
+  "workspaces": [
+    "src/web/dashboard"
+  ],
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  },
+  "release": {
+    "branches": [
+      "main",
+      {
+        "name": "develop",
+        "prerelease": "beta"
+      }
+    ],
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/changelog",
+      "@semantic-release/npm",
+      "@semantic-release/github",
+      "@semantic-release/git"
+    ]
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/your-org"
+  }
+}

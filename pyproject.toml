@@ -1,0 +1,368 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-mesh-federated-runtime"
+version = "1.0.0"
+description = "Decentralized peer-to-peer runtime for federated learning and multi-agent systems"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Daniel Schmidt", email = "daniel@terragon.ai"}
+]
+maintainers = [
+    {name = "Daniel Schmidt", email = "daniel@terragon.ai"}
+]
+keywords = [
+    "federated-learning",
+    "p2p",
+    "multi-agent",
+    "decentralized",
+    "byzantine-fault-tolerance",
+    "libp2p",
+    "consensus",
+    "mesh-network"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Distributed Computing",
+    "Topic :: System :: Networking"
+]
+requires-python = ">=3.9"
+dependencies = [
+    "asyncio",
+    "aiohttp>=3.8.0",
+    "grpcio>=1.50.0",
+    "grpcio-tools>=1.50.0",
+    "protobuf>=4.21.0",
+    "cryptography>=3.4.8",
+    "pynacl>=1.5.0",
+    "pydantic>=2.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.20.0",
+    "prometheus-client>=0.15.0",
+    "structlog>=22.1.0",
+    "click>=8.0.0",
+    "pyyaml>=6.0",
+    "numpy>=1.21.0",
+    "scipy>=1.7.0",
+    "scikit-learn>=1.0.0",
+    "torch>=2.0.0",
+    "transformers>=4.20.0",
+    "datasets>=2.0.0",
+    "py-libp2p>=0.1.0",
+    "aiodns>=3.0.0",
+    "aiofiles>=0.8.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.8.0",
+    "redis>=4.3.0",
+    "matplotlib>=3.5.0",
+    "seaborn>=0.11.0",
+    "plotly>=5.0.0",
+    "networkx>=2.8.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.1.0",
+    "pytest-asyncio>=0.20.0",
+    "pytest-cov>=4.0.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-mock>=3.8.0",
+    "pytest-xdist>=2.5.0",
+    "black>=22.0.0",
+    "isort>=5.10.0",
+    "flake8>=5.0.0",
+    "mypy>=1.0.0",
+    "bandit>=1.7.0",
+    "safety>=2.0.0",
+    "pre-commit>=2.20.0",
+    "coverage[toml]>=6.5.0",
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "sphinx-autodoc-typehints>=1.19.0",
+    "myst-parser>=0.18.0",
+    "jupyter>=1.0.0",
+    "notebook>=6.4.0",
+    "ipykernel>=6.15.0"
+]
+test = [
+    "pytest>=7.1.0",
+    "pytest-asyncio>=0.20.0",
+    "pytest-cov>=4.0.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-mock>=3.8.0",
+    "coverage[toml]>=6.5.0"
+]
+docs = [
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "sphinx-autodoc-typehints>=1.19.0",
+    "myst-parser>=0.18.0"
+]
+monitoring = [
+    "grafana-api>=1.0.0",
+    "prometheus-api-client>=0.5.0",
+    "opentelemetry-api>=1.12.0",
+    "opentelemetry-sdk>=1.12.0",
+    "opentelemetry-instrumentation>=0.33b0"
+]
+ml = [
+    "tensorboard>=2.9.0",
+    "wandb>=0.13.0",
+    "mlflow>=2.0.0",
+    "optuna>=3.0.0",
+    "ray[tune]>=2.0.0"
+]
+edge = [
+    "psutil>=5.9.0",
+    "GPUtil>=1.4.0",
+    "tensorflow-lite>=2.9.0",
+    "onnxruntime>=1.12.0"
+]
+all = [
+    "agent-mesh-federated-runtime[dev,test,docs,monitoring,ml,edge]"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/your-org/agent-mesh-federated-runtime"
+"Repository" = "https://github.com/your-org/agent-mesh-federated-runtime.git"
+"Documentation" = "https://agent-mesh.readthedocs.io"
+"Bug Tracker" = "https://github.com/your-org/agent-mesh-federated-runtime/issues"
+"Changelog" = "https://github.com/your-org/agent-mesh-federated-runtime/blob/main/CHANGELOG.md"
+
+[project.scripts]
+agent-mesh = "agent_mesh.cli:main"
+mesh-node = "agent_mesh.node:main"
+fed-trainer = "agent_mesh.federated.trainer:main"
+mesh-monitor = "agent_mesh.monitoring.dashboard:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["agent_mesh*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+"agent_mesh" = ["py.typed", "*.pyi"]
+"agent_mesh.proto" = ["*.proto"]
+"agent_mesh.web" = ["*.html", "*.css", "*.js", "*.json"]
+
+# =============================================================================
+# BLACK CONFIGURATION
+# =============================================================================
+
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+(
+  /(
+      \.eggs
+    | \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | proto
+  )/
+)
+'''
+
+# =============================================================================
+# ISORT CONFIGURATION
+# =============================================================================
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["agent_mesh"]
+known_third_party = ["pytest", "numpy", "torch", "grpc", "prometheus_client"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+default_section = "THIRDPARTY"
+combine_as_imports = true
+force_grid_wrap = 0
+include_trailing_comma = true
+use_parentheses = true
+
+# =============================================================================
+# MYPY CONFIGURATION
+# =============================================================================
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "grpc.*",
+    "prometheus_client.*",
+    "libp2p.*",
+    "nacl.*",
+    "torch.*",
+    "transformers.*",
+    "datasets.*",
+    "scipy.*",
+    "sklearn.*",
+    "matplotlib.*",
+    "seaborn.*",
+    "plotly.*",
+    "networkx.*"
+]
+ignore_missing_imports = true
+
+# =============================================================================
+# PYTEST CONFIGURATION
+# =============================================================================
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=agent_mesh",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--junitxml=test-results.xml"
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "e2e: End-to-end tests",
+    "performance: Performance/benchmark tests",
+    "slow: Slow running tests",
+    "gpu: Tests requiring GPU",
+    "network: Tests requiring network access"
+]
+asyncio_mode = "auto"
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+# =============================================================================
+# COVERAGE CONFIGURATION
+# =============================================================================
+
+[tool.coverage.run]
+source = ["src/agent_mesh"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/*_test.py",
+    "*/conftest.py",
+    "*/proto/*_pb2.py",
+    "*/proto/*_pb2_grpc.py"
+]
+branch = true
+parallel = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod"
+]
+show_missing = true
+precision = 2
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+# =============================================================================
+# BANDIT CONFIGURATION
+# =============================================================================
+
+[tool.bandit]
+exclude_dirs = ["tests", "build", "dist"]
+skips = ["B101", "B601"]
+
+# =============================================================================
+# RUFF CONFIGURATION
+# =============================================================================
+
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["B011"]
+
+[tool.ruff.isort]
+known-first-party = ["agent_mesh"]
+
+# =============================================================================
+# SEMANTIC RELEASE CONFIGURATION
+# =============================================================================
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+version_variables = [
+    "src/agent_mesh/__init__.py:__version__",
+]
+build_command = "python -m build"
+dist_path = "dist/"
+upload_to_pypi = false
+upload_to_release = true
+commit_author = "semantic-release <semantic-release@terragon.ai>"
+commit_message = "chore(release): {version}\n\n{changelog}"

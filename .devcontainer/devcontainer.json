@@ -1,0 +1,112 @@
+{
+  "name": "Agent Mesh Federated Runtime",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bullseye",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "18"
+    },
+    "ghcr.io/devcontainers/features/rust:1": {},
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.21"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.black-formatter",
+        "ms-python.isort",
+        "ms-python.flake8",
+        "ms-python.mypy-type-checker",
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.vscode-docker",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "hashicorp.terraform",
+        "redhat.vscode-yaml",
+        "golang.go",
+        "rust-lang.rust-analyzer",
+        "github.copilot",
+        "github.copilot-chat",
+        "esbenp.prettier-vscode",
+        "streetsidesoftware.code-spell-checker",
+        "ms-vscode.test-adapter-converter",
+        "littlefoxteam.vscode-python-test-adapter",
+        "ms-toolsai.jupyter"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.formatting.provider": "black",
+        "python.formatting.blackArgs": ["--line-length=88"],
+        "python.linting.enabled": true,
+        "python.linting.flake8Enabled": true,
+        "python.linting.mypyEnabled": true,
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.testing.nosetestsEnabled": false,
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.organizeImports": true
+        },
+        "files.exclude": {
+          "**/__pycache__": true,
+          "**/.pytest_cache": true,
+          "**/*.pyc": true,
+          "**/node_modules": true,
+          "**/.coverage": true
+        },
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+
+  "forwardPorts": [
+    3000,
+    4001,
+    5001,
+    8000,
+    8080,
+    9090
+  ],
+
+  "portsAttributes": {
+    "3000": {
+      "label": "Dashboard",
+      "onAutoForward": "notify"
+    },
+    "4001": {
+      "label": "P2P libp2p",
+      "onAutoForward": "silent"
+    },
+    "5001": {
+      "label": "gRPC API",
+      "onAutoForward": "silent"
+    },
+    "8000": {
+      "label": "Development Server",
+      "onAutoForward": "notify"
+    },
+    "9090": {
+      "label": "Prometheus Metrics",
+      "onAutoForward": "silent"
+    }
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  
+  "remoteUser": "vscode",
+  
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+
+  "containerEnv": {
+    "PYTHONPATH": "/workspaces/agent-mesh-federated-runtime",
+    "ENVIRONMENT": "development",
+    "LOG_LEVEL": "DEBUG"
+  }
+}

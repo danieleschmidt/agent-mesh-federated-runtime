@@ -1,0 +1,74 @@
+# YAML Lint Configuration for Agent Mesh
+
+extends: default
+
+rules:
+  # Line length - allow longer lines for readability
+  line-length:
+    max: 120
+    level: warning
+
+  # Indentation - use 2 spaces consistently
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+
+  # Comments - require space after # but allow inline comments
+  comments:
+    min-spaces-from-content: 1
+    require-starting-space: true
+
+  # Empty lines - allow multiple empty lines in some cases
+  empty-lines:
+    max: 2
+    max-start: 1
+    max-end: 1
+
+  # Brackets - allow both styles
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+    min-spaces-inside-empty: 0
+    max-spaces-inside-empty: 0
+
+  # Braces - allow both styles
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+    min-spaces-inside-empty: 0
+    max-spaces-inside-empty: 0
+
+  # Trailing spaces - not allowed
+  trailing-spaces: enable
+
+  # Key duplicates - not allowed
+  key-duplicates: enable
+
+  # Hyphens - require consistent spacing
+  hyphens:
+    max-spaces-after: 1
+
+  # Empty values - allow for placeholder configs
+  empty-values:
+    forbid-in-block-mappings: false
+    forbid-in-flow-mappings: true
+
+  # Quoted strings - allow both single and double quotes
+  quoted-strings:
+    quote-type: any
+    required: only-when-needed
+
+  # Truthy values - be lenient with boolean representations
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+    check-keys: false
+
+# File patterns to ignore
+ignore: |
+  .github/workflows/
+  k8s/
+  charts/
+  node_modules/
+  venv/
+  .venv/
