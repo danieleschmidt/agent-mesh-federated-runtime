@@ -1,0 +1,168 @@
+{
+  "python.defaultInterpreterPath": "./venv/bin/python",
+  "python.formatting.provider": "black",
+  "python.formatting.blackArgs": [
+    "--line-length=88",
+    "--target-version=py39"
+  ],
+  "python.linting.enabled": true,
+  "python.linting.flake8Enabled": true,
+  "python.linting.flake8Args": [
+    "--max-line-length=88",
+    "--extend-ignore=E203,W503"
+  ],
+  "python.linting.mypyEnabled": true,
+  "python.linting.mypyArgs": [
+    "--ignore-missing-imports",
+    "--follow-imports=silent",
+    "--show-column-numbers"
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": [
+    "tests",
+    "-v",
+    "--tb=short"
+  ],
+  "python.testing.unittestEnabled": false,
+  "python.testing.nosetestsEnabled": false,
+  "python.sortImports.args": [
+    "--profile=black",
+    "--multi-line=3",
+    "--trailing-comma",
+    "--force-grid-wrap=0",
+    "--combine-as",
+    "--line-width=88"
+  ],
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": false,
+  "editor.formatOnType": false,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true,
+    "source.fixAll.flake8": true
+  },
+  "editor.rulers": [
+    88
+  ],
+  "editor.tabSize": 4,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.coverage": true,
+    "**/htmlcov": true,
+    "**/node_modules": true,
+    "**/.DS_Store": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/*.egg-info": true
+  },
+  "files.watcherExclude": {
+    "**/__pycache__/**": true,
+    "**/.pytest_cache/**": true,
+    "**/.mypy_cache/**": true,
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/build/**": true
+  },
+  "search.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/*.egg-info": true,
+    "**/htmlcov": true
+  },
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.env.linux": {
+    "PYTHONPATH": "${workspaceFolder}/src"
+  },
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "package.json"
+      ],
+      "url": "https://json.schemastore.org/package.json"
+    },
+    {
+      "fileMatch": [
+        "docker-compose*.yml",
+        "docker-compose*.yaml"
+      ],
+      "url": "https://json.schemastore.org/docker-compose.json"
+    }
+  ],
+  "yaml.schemas": {
+    "https://json.schemastore.org/github-workflow.json": [
+      ".github/workflows/*.yml",
+      ".github/workflows/*.yaml"
+    ],
+    "https://json.schemastore.org/github-action.json": [
+      "action.yml",
+      "action.yaml"
+    ]
+  },
+  "docker.defaultRegistryPath": "ghcr.io/your-org",
+  "kubernetes.kubectlPath": "/usr/local/bin/kubectl",
+  "kubernetes.helmPath": "/usr/local/bin/helm",
+  "git.ignoreLimitWarning": true,
+  "git.autofetch": true,
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+  "git.defaultCloneDirectory": "~/workspace",
+  "extensions.ignoreRecommendations": false,
+  "workbench.editorAssociations": {
+    "*.ipynb": "jupyter-notebook"
+  },
+  "jupyter.askForKernelRestart": false,
+  "jupyter.interactiveWindow.collapseCellInputCode": "firstLine",
+  "todo-tree.general.tags": [
+    "TODO",
+    "FIXME",
+    "HACK",
+    "NOTE",
+    "BUG",
+    "XXX"
+  ],
+  "todo-tree.highlights.defaultHighlight": {
+    "icon": "alert",
+    "type": "tag",
+    "foreground": "red",
+    "background": "yellow",
+    "opacity": 50,
+    "iconColour": "blue"
+  },
+  "coverage-gutters.coverageFileNames": [
+    "coverage.xml",
+    "lcov.info",
+    ".coverage"
+  ],
+  "coverage-gutters.showLineCoverage": true,
+  "coverage-gutters.showRulerCoverage": true,
+  "rust-analyzer.check.command": "clippy",
+  "go.formatTool": "goimports",
+  "go.useLanguageServer": true,
+  "go.lintTool": "golangci-lint",
+  "go.testFlags": [
+    "-v",
+    "-race"
+  ],
+  "eslint.workingDirectories": [
+    "src/web/dashboard"
+  ],
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "javascript.preferences.importModuleSpecifier": "relative",
+  "emmet.includeLanguages": {
+    "javascript": "javascriptreact",
+    "typescript": "typescriptreact"
+  },
+  "task.autoDetect": "on",
+  "task.quickOpen.history": 10
+}

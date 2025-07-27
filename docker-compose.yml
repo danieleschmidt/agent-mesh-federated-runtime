@@ -1,0 +1,405 @@
+# Docker Compose for Agent Mesh Federated Runtime
+version: '3.8'
+
+# =============================================================================
+# SERVICES
+# =============================================================================
+
+services:
+  # Bootstrap node - First node in the mesh network
+  bootstrap-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: agent-mesh-bootstrap
+    hostname: bootstrap-node
+    ports:
+      - "4001:4001"  # P2P libp2p
+      - "5001:5001"  # gRPC API
+      - "8000:8000"  # HTTP API
+      - "8080:8080"  # Health check
+      - "9090:9090"  # Metrics
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+      - NODE_ID=bootstrap-node-001
+      - P2P_LISTEN_ADDR=/ip4/0.0.0.0/tcp/4001
+      - GRPC_LISTEN_PORT=5001
+      - API_PORT=8000
+      - HEALTH_CHECK_PORT=8080
+      - METRICS_PORT=9090
+      - NODE_ROLE=bootstrap
+      - BOOTSTRAP_PEERS=
+    volumes:
+      - bootstrap_data:/app/data
+      - ./configs:/app/configs:ro
+      - ./logs:/app/logs
+    networks:
+      - mesh-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "/app/healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Mesh nodes - Additional nodes in the network
+  mesh-node-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: agent-mesh-node-1
+    hostname: mesh-node-1
+    ports:
+      - "4002:4001"
+      - "5002:5001"
+      - "8001:8000"
+      - "9091:9090"
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+      - NODE_ID=mesh-node-001
+      - P2P_LISTEN_ADDR=/ip4/0.0.0.0/tcp/4001
+      - GRPC_LISTEN_PORT=5001
+      - API_PORT=8000
+      - METRICS_PORT=9090
+      - NODE_ROLE=trainer
+      - BOOTSTRAP_PEERS=/ip4/bootstrap-node/tcp/4001
+    volumes:
+      - node1_data:/app/data
+      - ./configs:/app/configs:ro
+      - ./logs:/app/logs
+    networks:
+      - mesh-network
+    depends_on:
+      - bootstrap-node
+    restart: unless-stopped
+
+  mesh-node-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: agent-mesh-node-2
+    hostname: mesh-node-2
+    ports:
+      - "4003:4001"
+      - "5003:5001"
+      - "8002:8000"
+      - "9092:9090"
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+      - NODE_ID=mesh-node-002
+      - P2P_LISTEN_ADDR=/ip4/0.0.0.0/tcp/4001
+      - GRPC_LISTEN_PORT=5001
+      - API_PORT=8000
+      - METRICS_PORT=9090
+      - NODE_ROLE=aggregator
+      - BOOTSTRAP_PEERS=/ip4/bootstrap-node/tcp/4001
+    volumes:
+      - node2_data:/app/data
+      - ./configs:/app/configs:ro
+      - ./logs:/app/logs
+    networks:
+      - mesh-network
+    depends_on:
+      - bootstrap-node
+    restart: unless-stopped
+
+  mesh-node-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: agent-mesh-node-3
+    hostname: mesh-node-3
+    ports:
+      - "4004:4001"
+      - "5004:5001"
+      - "8003:8000"
+      - "9093:9090"
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+      - NODE_ID=mesh-node-003
+      - P2P_LISTEN_ADDR=/ip4/0.0.0.0/tcp/4001
+      - GRPC_LISTEN_PORT=5001
+      - API_PORT=8000
+      - METRICS_PORT=9090
+      - NODE_ROLE=validator
+      - BOOTSTRAP_PEERS=/ip4/bootstrap-node/tcp/4001
+    volumes:
+      - node3_data:/app/data
+      - ./configs:/app/configs:ro
+      - ./logs:/app/logs
+    networks:
+      - mesh-network
+    depends_on:
+      - bootstrap-node
+    restart: unless-stopped
+
+  # =============================================================================
+  # MONITORING SERVICES
+  # =============================================================================
+
+  # Prometheus - Metrics collection
+  prometheus:
+    image: prom/prometheus:v2.40.0
+    container_name: agent-mesh-prometheus
+    hostname: prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - mesh-network
+    restart: unless-stopped
+
+  # Grafana - Visualization dashboard
+  grafana:
+    image: grafana/grafana:9.3.0
+    container_name: agent-mesh-grafana
+    hostname: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - mesh-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # =============================================================================
+  # SUPPORTING SERVICES
+  # =============================================================================
+
+  # Redis - Caching and message broker
+  redis:
+    image: redis:7.0-alpine
+    container_name: agent-mesh-redis
+    hostname: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - mesh-network
+    restart: unless-stopped
+
+  # PostgreSQL - Optional persistent storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: agent-mesh-postgres
+    hostname: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=agent_mesh
+      - POSTGRES_USER=agent_mesh
+      - POSTGRES_PASSWORD=mesh_password_123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - mesh-network
+    restart: unless-stopped
+
+  # =============================================================================
+  # DEVELOPMENT SERVICES
+  # =============================================================================
+
+  # Development node with hot reload
+  dev-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: agent-mesh-dev
+    hostname: dev-node
+    ports:
+      - "4005:4001"
+      - "5005:5001"
+      - "8005:8000"
+      - "9095:9090"
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+      - NODE_ID=dev-node-001
+      - PYTHONPATH=/app/src
+    volumes:
+      - .:/app:delegated
+      - dev_data:/app/data
+    networks:
+      - mesh-network
+    profiles:
+      - development
+    restart: unless-stopped
+
+  # Jupyter notebook for experimentation
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: agent-mesh-jupyter
+    hostname: jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=mesh_notebook_token
+    command: >
+      sh -c "pip install jupyterlab &&
+             jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+             --NotebookApp.token='mesh_notebook_token'"
+    volumes:
+      - .:/app:delegated
+      - jupyter_data:/root/.jupyter
+    networks:
+      - mesh-network
+    profiles:
+      - development
+    restart: unless-stopped
+
+  # =============================================================================
+  # TESTING SERVICES
+  # =============================================================================
+
+  # Test runner
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: testing
+    container_name: agent-mesh-tests
+    environment:
+      - ENVIRONMENT=testing
+      - PYTHONPATH=/app/src
+    volumes:
+      - .:/app:delegated
+      - test_coverage:/app/htmlcov
+    networks:
+      - mesh-network
+    profiles:
+      - testing
+    command: >
+      sh -c "python -m pytest tests/ -v --cov=src --cov-report=html --cov-report=term"
+
+  # Load testing
+  load-tester:
+    image: loadimpact/k6:latest
+    container_name: agent-mesh-load-test
+    volumes:
+      - ./tests/load:/scripts:ro
+    networks:
+      - mesh-network
+    profiles:
+      - testing
+    command: run /scripts/mesh_load_test.js
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+
+networks:
+  mesh-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+
+volumes:
+  # Node data volumes
+  bootstrap_data:
+    driver: local
+  node1_data:
+    driver: local
+  node2_data:
+    driver: local
+  node3_data:
+    driver: local
+  dev_data:
+    driver: local
+
+  # Monitoring volumes
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+  # Database volumes
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+  # Development volumes
+  jupyter_data:
+    driver: local
+  test_coverage:
+    driver: local
+
+# =============================================================================
+# CONFIGURATION OVERRIDES
+# =============================================================================
+
+# Override for GPU support
+x-gpu-config: &gpu-config
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: 1
+            capabilities: [gpu]
+
+# Override for production scaling
+x-production-config: &production-config
+  deploy:
+    replicas: 3
+    restart_policy:
+      condition: on-failure
+      delay: 5s
+      max_attempts: 3
+    resources:
+      limits:
+        memory: 2G
+        cpus: '1.0'
+      reservations:
+        memory: 1G
+        cpus: '0.5'
+
+# =============================================================================
+# PROFILES AND EXTENSIONS
+# =============================================================================
+
+# Additional compose files for different environments:
+# - docker-compose.override.yml (local development overrides)
+# - docker-compose.prod.yml (production configuration)
+# - docker-compose.gpu.yml (GPU-enabled nodes)
+# - docker-compose.monitoring.yml (extended monitoring)
+# - docker-compose.test.yml (testing infrastructure)

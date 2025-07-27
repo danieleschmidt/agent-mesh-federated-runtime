@@ -205,3 +205,81 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# =============================================================================
+# AGENT MESH SPECIFIC
+# =============================================================================
+
+# P2P networking data
+*.key
+*.crt
+*.pem
+*.p12
+*.pfx
+node_data/
+mesh_data/
+peer_store/
+
+# Federated learning artifacts
+models/
+*.model
+*.pkl
+*.pickle
+*.h5
+*.onnx
+*.pt
+*.pth
+checkpoints/
+fed_checkpoints/
+
+# Configuration overrides
+configs/local/
+configs/override/
+local.yaml
+local.yml
+local.json
+local.toml
+
+# Runtime data
+data/
+logs/
+run/
+var/
+*.sock
+
+# Monitoring data
+prometheus/
+grafana/
+metrics/
+
+# Test artifacts
+test_results/
+test_data/
+mock_data/
+benchmark_results/
+perf_results/
+
+# Performance profiling
+*.prof
+*.profile
+profile_output/
+
+# Docker volumes
+docker-volumes/
+
+# Kubernetes secrets
+k8s/secrets/
+
+# Protocol buffers compiled
+*_pb2.py
+*_pb2_grpc.py
+*.pb.go
+*.pb.cc
+*.pb.h
+
+# Keep example files
+!.env.example
+!configs/examples/
+!.github/
+!docs/assets/
+!tests/fixtures/

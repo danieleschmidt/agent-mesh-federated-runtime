@@ -1,0 +1,89 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# Top-most EditorConfig file
+root = true
+
+# All files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Python files
+[*.py]
+indent_size = 4
+max_line_length = 88
+
+# YAML files
+[*.{yml,yaml}]
+indent_size = 2
+
+# JSON files
+[*.json]
+indent_size = 2
+
+# JavaScript and TypeScript
+[*.{js,ts,jsx,tsx}]
+indent_size = 2
+
+# HTML
+[*.html]
+indent_size = 2
+
+# CSS and SCSS
+[*.{css,scss}]
+indent_size = 2
+
+# Markdown
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = 80
+
+# Makefile
+[Makefile]
+indent_style = tab
+
+# Dockerfile
+[Dockerfile*]
+indent_size = 2
+
+# Shell scripts
+[*.sh]
+indent_size = 2
+
+# XML files
+[*.xml]
+indent_size = 2
+
+# Configuration files
+[*.{toml,ini,cfg}]
+indent_size = 2
+
+# Protocol Buffers
+[*.proto]
+indent_size = 2
+
+# Go files
+[*.go]
+indent_style = tab
+indent_size = 4
+
+# Rust files
+[*.rs]
+indent_size = 4
+
+# SQL files
+[*.sql]
+indent_size = 2
+
+# Ignore binary files
+[*.{png,jpg,jpeg,gif,ico,svg,woff,woff2,ttf,eot}]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset
