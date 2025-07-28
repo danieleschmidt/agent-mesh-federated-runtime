@@ -1,0 +1,259 @@
+# Dockerignore for Agent Mesh Federated Runtime
+
+# =============================================================================
+# Python artifacts
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PYMANIFEST
+
+# =============================================================================
+# Testing artifacts
+# =============================================================================
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+htmlcov/
+test-results.xml
+security-report.json
+safety-report.json
+profile.stats
+
+# =============================================================================
+# Development environment
+# =============================================================================
+.env
+.env.*
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.Python
+.pyenv
+pipfile.lock
+
+# =============================================================================
+# IDEs and editors
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =============================================================================
+# Git and version control
+# =============================================================================
+.git/
+.gitignore
+.gitattributes
+.gitmodules
+
+# =============================================================================
+# Documentation artifacts
+# =============================================================================
+docs/_build/
+docs/.doctrees/
+.sphinx/
+site/
+
+# =============================================================================
+# Node.js artifacts (for dashboard)
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+package-lock.json
+yarn.lock
+
+# =============================================================================
+# Log files
+# =============================================================================
+logs/
+*.log
+*.log.*
+
+# =============================================================================
+# Data and configuration
+# =============================================================================
+data/
+backups/
+configs/local*
+configs/dev*
+configs/*.key
+configs/*.pem
+configs/*.p12
+configs/*.pfx
+
+# =============================================================================
+# Security artifacts
+# =============================================================================
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+*.der
+.security_test_authorization
+secrets/
+keys/
+certificates/
+
+# =============================================================================
+# Temporary files
+# =============================================================================
+tmp/
+temp/
+*.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock
+
+# =============================================================================
+# OS specific
+# =============================================================================
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# =============================================================================
+# Build artifacts
+# =============================================================================
+*.tar.gz
+*.tgz
+*.zip
+*.rar
+*.7z
+*.iso
+*.dmg
+*.pkg
+*.deb
+*.rpm
+
+# =============================================================================
+# Container artifacts
+# =============================================================================
+.dockerignore
+Dockerfile.*
+docker-compose*.yml
+.docker/
+
+# =============================================================================
+# CI/CD artifacts
+# =============================================================================
+.github/
+.circleci/
+.travis.yml
+.gitlab-ci.yml
+Jenkinsfile
+.drone.yml
+
+# =============================================================================
+# Monitoring and metrics
+# =============================================================================
+monitoring/
+metrics/
+prometheus/
+grafana/
+juice-shop.log
+
+# =============================================================================
+# Keep essential files
+# =============================================================================
+!src/
+!tests/unit/
+!tests/integration/
+!pyproject.toml
+!requirements.txt
+!README.md
+!LICENSE
+!MANIFEST.in
+!configs/production.yaml
+!configs/staging.yaml
+!scripts/
+
+# =============================================================================
+# Exceptions for specific files needed in container
+# =============================================================================
+!.env.example
+!docker-entrypoint.sh
+!healthcheck.py
