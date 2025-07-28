@@ -1,0 +1,515 @@
+# Security Scanning Workflow for Agent Mesh Federated Runtime
+# Comprehensive security scanning including SAST, DAST, dependency checks, and container scanning
+#
+# MANUAL SETUP REQUIRED:
+# 1. Copy this file to .github/workflows/security-scan.yml
+# 2. Configure security scanning secrets in repository settings
+# 3. Review and customize security thresholds
+# 4. Setup security team notifications
+
+name: Security Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run daily security scans at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - sast
+          - dependencies
+          - containers
+          - secrets
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: agent-mesh-federated-runtime
+  SECURITY_THRESHOLD: 'medium'  # Options: low, medium, high, critical
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel security scans
+
+jobs:
+  # =============================================================================
+  # STATIC APPLICATION SECURITY TESTING (SAST)
+  # =============================================================================
+  sast-analysis:
+    name: Static Analysis Security Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: ${{ inputs.scan_type == 'all' || inputs.scan_type == 'sast' || github.event_name != 'workflow_dispatch' }}
+    permissions:
+      security-events: write
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better analysis
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit[toml] semgrep pylint-secure-coding-standard
+    
+    - name: Run Bandit SAST scan
+      run: |
+        bandit -r src/ \
+          -f json -o bandit-results.json \
+          -f sarif -o bandit-results.sarif \
+          -ll -i || true
+        
+        # Generate human-readable report
+        bandit -r src/ -f txt > bandit-report.txt || true
+    
+    - name: Run Semgrep SAST scan
+      run: |
+        semgrep --config=auto \
+          --json --output=semgrep-results.json \
+          --sarif --output=semgrep-results.sarif \
+          --severity=WARNING \
+          src/ || true
+    
+    - name: Upload SARIF results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: |
+          bandit-results.sarif
+          semgrep-results.sarif
+        category: "SAST Analysis"
+    
+    - name: Parse security results
+      run: |
+        python << 'EOF'
+        import json
+        import sys
+        
+        def parse_bandit_results():
+            try:
+                with open('bandit-results.json', 'r') as f:
+                    data = json.load(f)
+                    metrics = data.get('metrics', {})
+                    issues = data.get('results', [])
+                    
+                    high_severity = len([i for i in issues if i.get('issue_severity') == 'HIGH'])
+                    medium_severity = len([i for i in issues if i.get('issue_severity') == 'MEDIUM'])
+                    
+                    print(f"Bandit Results: {high_severity} high, {medium_severity} medium severity issues")
+                    return high_severity, medium_severity
+            except Exception as e:
+                print(f"Error parsing Bandit results: {e}")
+                return 0, 0
+        
+        def parse_semgrep_results():
+            try:
+                with open('semgrep-results.json', 'r') as f:
+                    data = json.load(f)
+                    results = data.get('results', [])
+                    
+                    critical = len([r for r in results if r.get('extra', {}).get('severity') == 'ERROR'])
+                    high = len([r for r in results if r.get('extra', {}).get('severity') == 'WARNING'])
+                    
+                    print(f"Semgrep Results: {critical} critical, {high} high severity issues")
+                    return critical, high
+            except Exception as e:
+                print(f"Error parsing Semgrep results: {e}")
+                return 0, 0
+        
+        bandit_high, bandit_medium = parse_bandit_results()
+        semgrep_critical, semgrep_high = parse_semgrep_results()
+        
+        # Set environment variables for next steps
+        with open('$GITHUB_ENV', 'a') as f:
+            f.write(f"BANDIT_HIGH={bandit_high}\n")
+            f.write(f"BANDIT_MEDIUM={bandit_medium}\n")
+            f.write(f"SEMGREP_CRITICAL={semgrep_critical}\n")
+            f.write(f"SEMGREP_HIGH={semgrep_high}\n")
+        
+        # Fail if critical issues found
+        if bandit_high > 0 or semgrep_critical > 0:
+            print(f"\u274c Critical security issues found!")
+            sys.exit(1)
+        
+        EOF
+    
+    - name: Upload SAST artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: sast-results
+        path: |
+          bandit-results.json
+          bandit-results.sarif
+          bandit-report.txt
+          semgrep-results.json
+          semgrep-results.sarif
+    
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let comment = '## 🔒 Security Scan Results\n\n';
+          
+          comment += `| Tool | Critical | High | Medium | Status |\n`;
+          comment += `|------|----------|------|--------|--------|\n`;
+          comment += `| Bandit | - | ${process.env.BANDIT_HIGH} | ${process.env.BANDIT_MEDIUM} | ${process.env.BANDIT_HIGH > 0 ? '❌' : '✅'} |\n`;
+          comment += `| Semgrep | ${process.env.SEMGREP_CRITICAL} | ${process.env.SEMGREP_HIGH} | - | ${process.env.SEMGREP_CRITICAL > 0 ? '❌' : '✅'} |\n`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  # =============================================================================
+  # DEPENDENCY VULNERABILITY SCANNING
+  # =============================================================================
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ inputs.scan_type == 'all' || inputs.scan_type == 'dependencies' || github.event_name != 'workflow_dispatch' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety pip-audit cyclonedx-bom
+        pip install -r requirements.txt || true
+    
+    - name: Run Safety scan
+      run: |
+        safety check \
+          --json --output safety-results.json \
+          --continue-on-error || true
+        
+        safety check --short-report > safety-report.txt || true
+    
+    - name: Run pip-audit scan
+      run: |
+        pip-audit \
+          --format=json --output=pip-audit-results.json \
+          --progress-spinner=off || true
+        
+        pip-audit --format=cyclonedx-json --output=sbom.json || true
+    
+    - name: Generate SBOM (Software Bill of Materials)
+      run: |
+        cyclonedx-py requirements -o sbom-cyclonedx.json || true
+    
+    - name: Scan Node.js dependencies
+      if: hashFiles('package.json') != ''
+      run: |
+        npm audit --audit-level=moderate --json > npm-audit-results.json || true
+        npm audit --audit-level=moderate || true
+    
+    - name: Parse dependency scan results
+      run: |
+        python << 'EOF'
+        import json
+        import sys
+        import os
+        
+        def parse_safety_results():
+            try:
+                with open('safety-results.json', 'r') as f:
+                    data = json.load(f)
+                    vulnerabilities = data.get('vulnerabilities', [])
+                    
+                    critical = len([v for v in vulnerabilities if v.get('severity') == 'critical'])
+                    high = len([v for v in vulnerabilities if v.get('severity') == 'high'])
+                    medium = len([v for v in vulnerabilities if v.get('severity') == 'medium'])
+                    
+                    print(f"Safety Results: {critical} critical, {high} high, {medium} medium")
+                    return critical, high, medium
+            except Exception as e:
+                print(f"Error parsing Safety results: {e}")
+                return 0, 0, 0
+        
+        def parse_npm_audit():
+            if not os.path.exists('npm-audit-results.json'):
+                return 0, 0, 0
+            
+            try:
+                with open('npm-audit-results.json', 'r') as f:
+                    data = json.load(f)
+                    metadata = data.get('metadata', {})
+                    vulnerabilities = metadata.get('vulnerabilities', {})
+                    
+                    critical = vulnerabilities.get('critical', 0)
+                    high = vulnerabilities.get('high', 0)
+                    moderate = vulnerabilities.get('moderate', 0)
+                    
+                    print(f"NPM Audit Results: {critical} critical, {high} high, {moderate} moderate")
+                    return critical, high, moderate
+            except Exception as e:
+                print(f"Error parsing NPM audit results: {e}")
+                return 0, 0, 0
+        
+        safety_critical, safety_high, safety_medium = parse_safety_results()
+        npm_critical, npm_high, npm_moderate = parse_npm_audit()
+        
+        total_critical = safety_critical + npm_critical
+        total_high = safety_high + npm_high
+        
+        # Set environment variables
+        with open('$GITHUB_ENV', 'a') as f:
+            f.write(f"DEPS_CRITICAL={total_critical}\n")
+            f.write(f"DEPS_HIGH={total_high}\n")
+            f.write(f"DEPS_MEDIUM={safety_medium + npm_moderate}\n")
+        
+        # Fail on critical vulnerabilities
+        if total_critical > 0:
+            print(f"❌ Critical dependency vulnerabilities found!")
+            sys.exit(1)
+        
+        EOF
+    
+    - name: Upload dependency scan results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-scan-results
+        path: |
+          safety-results.json
+          safety-report.txt
+          pip-audit-results.json
+          npm-audit-results.json
+          sbom.json
+          sbom-cyclonedx.json
+
+  # =============================================================================
+  # CONTAINER IMAGE SECURITY SCANNING
+  # =============================================================================
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: ${{ inputs.scan_type == 'all' || inputs.scan_type == 'containers' || github.event_name != 'workflow_dispatch' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Build Docker image
+      run: |
+        docker build -t security-scan-image:latest .
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'security-scan-image:latest'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Run Trivy JSON scan
+      run: |
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          -v $(pwd):/workspace \
+          aquasec/trivy:latest image \
+          --format json \
+          --output /workspace/trivy-results.json \
+          --severity HIGH,CRITICAL \
+          security-scan-image:latest
+    
+    - name: Run Docker Bench Security
+      run: |
+        docker run --rm --net host --pid host --userns host --cap-add audit_control \
+          -e DOCKER_CONTENT_TRUST=$DOCKER_CONTENT_TRUST \
+          -v /etc:/etc:ro \
+          -v /usr/bin/containerd:/usr/bin/containerd:ro \
+          -v /usr/bin/runc:/usr/bin/runc:ro \
+          -v /usr/lib/systemd:/usr/lib/systemd:ro \
+          -v /var/lib:/var/lib:ro \
+          -v /var/run/docker.sock:/var/run/docker.sock:ro \
+          --name docker-bench-security \
+          docker/docker-bench-security > docker-bench-results.txt || true
+    
+    - name: Upload SARIF to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: trivy-results.sarif
+        category: "Container Security"
+    
+    - name: Parse container scan results
+      run: |
+        python << 'EOF'
+        import json
+        import sys
+        
+        try:
+            with open('trivy-results.json', 'r') as f:
+                data = json.load(f)
+                results = data.get('Results', [])
+                
+                total_critical = 0
+                total_high = 0
+                
+                for result in results:
+                    vulnerabilities = result.get('Vulnerabilities', [])
+                    
+                    critical = len([v for v in vulnerabilities if v.get('Severity') == 'CRITICAL'])
+                    high = len([v for v in vulnerabilities if v.get('Severity') == 'HIGH'])
+                    
+                    total_critical += critical
+                    total_high += high
+                
+                print(f"Container scan results: {total_critical} critical, {total_high} high")
+                
+                with open('$GITHUB_ENV', 'a') as f:
+                    f.write(f"CONTAINER_CRITICAL={total_critical}\n")
+                    f.write(f"CONTAINER_HIGH={total_high}\n")
+                
+                if total_critical > 0:
+                    print("❌ Critical container vulnerabilities found!")
+                    sys.exit(1)
+                    
+        except Exception as e:
+            print(f"Error parsing container scan results: {e}")
+        
+        EOF
+    
+    - name: Upload container scan results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: container-scan-results
+        path: |
+          trivy-results.sarif
+          trivy-results.json
+          docker-bench-results.txt
+
+  # =============================================================================
+  # SECRETS DETECTION
+  # =============================================================================
+  secrets-scan:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ inputs.scan_type == 'all' || inputs.scan_type == 'secrets' || github.event_name != 'workflow_dispatch' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for secret detection
+    
+    - name: Run detect-secrets
+      run: |
+        pip install detect-secrets
+        
+        # Baseline scan
+        if [ -f ".secrets.baseline" ]; then
+          detect-secrets scan --baseline .secrets.baseline
+        else
+          detect-secrets scan --all-files --force-use-all-plugins > secrets-results.json
+        fi
+    
+    - name: Run TruffleHog
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+    
+    - name: Upload secrets scan results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: secrets-scan-results
+        path: |
+          secrets-results.json
+          .secrets.baseline
+
+  # =============================================================================
+  # SECURITY SUMMARY AND NOTIFICATIONS
+  # =============================================================================
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [sast-analysis, dependency-scan, container-scan, secrets-scan]
+    if: always()
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+    
+    - name: Generate security summary
+      run: |
+        echo "# 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Scan completed on: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Category | Status | Critical | High | Medium |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|--------|----------|------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| SAST Analysis | ${{ needs.sast-analysis.result == 'success' && '✅' || '❌' }} | ${SEMGREP_CRITICAL:-0} | ${BANDIT_HIGH:-0} + ${SEMGREP_HIGH:-0} | ${BANDIT_MEDIUM:-0} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Dependencies | ${{ needs.dependency-scan.result == 'success' && '✅' || '❌' }} | ${DEPS_CRITICAL:-0} | ${DEPS_HIGH:-0} | ${DEPS_MEDIUM:-0} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Container Security | ${{ needs.container-scan.result == 'success' && '✅' || '❌' }} | ${CONTAINER_CRITICAL:-0} | ${CONTAINER_HIGH:-0} | - |" >> $GITHUB_STEP_SUMMARY
+        echo "| Secrets Detection | ${{ needs.secrets-scan.result == 'success' && '✅' || '❌' }} | - | - | - |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Add remediation guidance
+        echo "## 🔧 Remediation Guidance" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Critical Issues**: Must be fixed before merging" >> $GITHUB_STEP_SUMMARY
+        echo "- **High Issues**: Should be fixed in this PR or tracked as technical debt" >> $GITHUB_STEP_SUMMARY
+        echo "- **Medium Issues**: Can be addressed in follow-up PRs" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "View detailed results in the Security tab or download artifacts for full reports." >> $GITHUB_STEP_SUMMARY
+    
+    - name: Check overall security status
+      run: |
+        if [[ "${{ needs.sast-analysis.result }}" == "failure" || 
+              "${{ needs.dependency-scan.result }}" == "failure" || 
+              "${{ needs.container-scan.result }}" == "failure" || 
+              "${{ needs.secrets-scan.result }}" == "failure" ]]; then
+          echo "❌ Security scan failed - critical vulnerabilities found"
+          exit 1
+        else
+          echo "✅ Security scan completed - no critical issues found"
+        fi
+    
+    # Notify security team on critical findings
+    - name: Notify security team
+      if: failure() && github.event_name == 'push'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: '🚨 Critical security vulnerabilities detected in ${{ github.repository }}'
+        webhook_url: ${{ secrets.SECURITY_SLACK_WEBHOOK }}
+        channel: '#security-alerts'
+        username: 'Security Scanner'
+        icon_emoji: ':warning:'

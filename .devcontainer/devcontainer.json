@@ -22,12 +22,15 @@
         "ms-python.isort",
         "ms-python.flake8",
         "ms-python.mypy-type-checker",
+        "ms-python.pytest",
         "ms-vscode.vscode-typescript-next",
+        "ms-vscode.vscode-eslint",
         "bradlc.vscode-tailwindcss",
         "ms-vscode.vscode-docker",
         "ms-kubernetes-tools.vscode-kubernetes-tools",
         "hashicorp.terraform",
         "redhat.vscode-yaml",
+        "ms-vscode.vscode-json",
         "golang.go",
         "rust-lang.rust-analyzer",
         "github.copilot",
@@ -36,13 +39,27 @@
         "streetsidesoftware.code-spell-checker",
         "ms-vscode.test-adapter-converter",
         "littlefoxteam.vscode-python-test-adapter",
-        "ms-toolsai.jupyter"
+        "ms-toolsai.jupyter",
+        "ms-vscode.makefile-tools",
+        "github.vscode-pull-request-github",
+        "mhutchie.git-graph",
+        "eamodio.gitlens",
+        "bierner.markdown-mermaid",
+        "yzhang.markdown-all-in-one",
+        "davidanson.vscode-markdownlint",
+        "shd101wyy.markdown-preview-enhanced",
+        "formulahendry.auto-rename-tag",
+        "christian-kohler.path-intellisense",
+        "visualstudioexptteam.vscodeintellicode",
+        "ms-vscode.vscode-github-actions"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
         "python.formatting.provider": "black",
         "python.formatting.blackArgs": ["--line-length=88"],
+        "python.sortImports.args": ["--profile", "black"],
         "python.linting.enabled": true,
+        "python.linting.pylintEnabled": false,
         "python.linting.flake8Enabled": true,
         "python.linting.mypyEnabled": true,
         "python.testing.pytestEnabled": true,
@@ -57,9 +74,24 @@
           "**/.pytest_cache": true,
           "**/*.pyc": true,
           "**/node_modules": true,
-          "**/.coverage": true
+          "**/.coverage": true,
+          "**/.mypy_cache": true,
+          "**/dist": true,
+          "**/build": true,
+          "**/*.egg-info": true
         },
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "git.enableCommitSigning": false,
+        "docker.enableDockerComposeLanguageService": true,
+        "typescript.preferences.importModuleSpecifier": "relative",
+        "eslint.workingDirectories": ["src/web/dashboard"],
+        "prettier.configPath": "src/web/dashboard/.prettierrc",
+        "markdownlint.config": {
+          "MD013": { "line_length": 100 },
+          "MD033": false
+        }
       }
     }
   },
