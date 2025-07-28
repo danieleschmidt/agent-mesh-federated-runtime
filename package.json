@@ -41,6 +41,7 @@
     "test:watch": "pytest-watch tests/",
     "lint": "npm run lint:python && npm run lint:js",
     "lint:python": "flake8 src/ tests/ && mypy src/",
+    "typecheck": "mypy src/ --strict",
     "lint:js": "cd src/web/dashboard && npm run lint",
     "format": "npm run format:python && npm run format:js",
     "format:python": "black src/ tests/ && isort src/ tests/",
