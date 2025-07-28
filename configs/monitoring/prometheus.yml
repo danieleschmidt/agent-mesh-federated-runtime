@@ -1,0 +1,228 @@
+# Prometheus configuration for Agent Mesh Federated Runtime
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'agent-mesh'
+    environment: '${ENVIRONMENT:-development}'
+
+rule_files:
+  - "alerts/*.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # ============================================================================
+  # SYSTEM METRICS
+  # ============================================================================
+  
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: /metrics
+    scrape_interval: 15s
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+
+  # ============================================================================
+  # AGENT MESH METRICS
+  # ============================================================================
+  
+  - job_name: 'agent-mesh-nodes'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - agent-mesh
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: agent-mesh
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+
+  - job_name: 'agent-mesh-api'
+    static_configs:
+      - targets: ['localhost:8000']
+    metrics_path: /metrics
+    scrape_interval: 10s
+    metrics_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'agent_mesh_.*'
+        action: keep
+
+  # ============================================================================
+  # P2P NETWORK METRICS
+  # ============================================================================
+  
+  - job_name: 'p2p-network'
+    static_configs:
+      - targets: ['localhost:9091']
+    metrics_path: /metrics
+    scrape_interval: 5s
+    params:
+      format: ['prometheus']
+
+  # ============================================================================
+  # CONSENSUS METRICS
+  # ============================================================================
+  
+  - job_name: 'consensus-engine'
+    static_configs:
+      - targets: ['localhost:9092']
+    metrics_path: /consensus/metrics
+    scrape_interval: 5s
+
+  # ============================================================================
+  # FEDERATED LEARNING METRICS
+  # ============================================================================
+  
+  - job_name: 'federated-learning'
+    static_configs:
+      - targets: ['localhost:9093']
+    metrics_path: /fl/metrics
+    scrape_interval: 30s
+
+  # ============================================================================
+  # DATABASE METRICS
+  # ============================================================================
+  
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  # ============================================================================
+  # APPLICATION PERFORMANCE MONITORING
+  # ============================================================================
+  
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://localhost:8000/health
+        - http://localhost:8000/ready
+        - http://localhost:3000
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # ============================================================================
+  # KUBERNETES METRICS (when deployed in K8s)
+  # ============================================================================
+  
+  - job_name: 'kubernetes-apiservers'
+    kubernetes_sd_configs:
+      - role: endpoints
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+  - job_name: 'kubernetes-nodes'
+    kubernetes_sd_configs:
+      - role: node
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics
+
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+
+# Metric relabeling rules
+metric_relabel_configs:
+  # Drop high cardinality metrics
+  - source_labels: [__name__]
+    regex: 'go_memstats_.*'
+    action: drop
+  
+  # Rename metrics for consistency
+  - source_labels: [__name__]
+    regex: 'agent_mesh_(.*)'
+    replacement: 'mesh_${1}'
+    target_label: __name__
+
+# Storage configuration
+storage:
+  tsdb:
+    retention_time: 30d
+    retention_size: 10GB
+    wal_compression: true
+
+# Remote write configuration (for long-term storage)
+remote_write:
+  - url: "${PROMETHEUS_REMOTE_WRITE_URL}"
+    name: long_term_storage
+    queue_config:
+      max_samples_per_send: 1000
+      max_shards: 200
+      capacity: 2500
