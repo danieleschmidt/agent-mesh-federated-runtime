@@ -1,0 +1,340 @@
+# Prometheus alerting rules for Agent Mesh Federated Runtime
+
+groups:
+  # ============================================================================
+  # SYSTEM HEALTH ALERTS
+  # ============================================================================
+  
+  - name: system_health
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for instance {{ $labels.instance }} (current value: {{ $value }}%)"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 85% for instance {{ $labels.instance }} (current value: {{ $value }}%)"
+
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 90
+        for: 10m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Disk space is running low"
+          description: "Disk usage is above 90% for {{ $labels.mountpoint }} on {{ $labels.instance }} (current value: {{ $value }}%)"
+
+  # ============================================================================
+  # AGENT MESH NODE ALERTS
+  # ============================================================================
+  
+  - name: agent_mesh_nodes
+    rules:
+      - alert: NodeDown
+        expr: up{job="agent-mesh-nodes"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: mesh_node
+        annotations:
+          summary: "Agent mesh node is down"
+          description: "Node {{ $labels.instance }} has been down for more than 1 minute"
+
+      - alert: NodeDisconnected
+        expr: mesh_node_peer_count < 1
+        for: 5m
+        labels:
+          severity: warning
+          component: mesh_node
+        annotations:
+          summary: "Node has no peer connections"
+          description: "Node {{ $labels.instance }} has no peer connections for more than 5 minutes"
+
+      - alert: HighMessageLatency
+        expr: histogram_quantile(0.95, rate(mesh_message_duration_seconds_bucket[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: mesh_network
+        annotations:
+          summary: "High message latency detected"
+          description: "95th percentile message latency is {{ $value }}s on {{ $labels.instance }}"
+
+      - alert: MessageDropRate
+        expr: rate(mesh_messages_dropped_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: mesh_network
+        annotations:
+          summary: "High message drop rate"
+          description: "Message drop rate is {{ $value }} messages/sec on {{ $labels.instance }}"
+
+  # ============================================================================
+  # P2P NETWORK ALERTS
+  # ============================================================================
+  
+  - name: p2p_network
+    rules:
+      - alert: NetworkPartition
+        expr: mesh_network_partition_detected > 0
+        for: 30s
+        labels:
+          severity: critical
+          component: p2p_network
+        annotations:
+          summary: "Network partition detected"
+          description: "Network partition detected in mesh network ({{ $labels.partition_id }})"
+
+      - alert: HighConnectionFailures
+        expr: rate(mesh_connection_failures_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          component: p2p_network
+        annotations:
+          summary: "High connection failure rate"
+          description: "Connection failure rate is {{ $value }} failures/sec on {{ $labels.instance }}"
+
+      - alert: PeerDiscoveryFailing
+        expr: mesh_peer_discovery_failures_total > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: p2p_network
+        annotations:
+          summary: "Peer discovery is failing"
+          description: "Peer discovery has failed {{ $value }} times on {{ $labels.instance }}"
+
+  # ============================================================================
+  # CONSENSUS ALERTS
+  # ============================================================================
+  
+  - name: consensus
+    rules:
+      - alert: ConsensusStalled
+        expr: time() - mesh_consensus_last_decision_timestamp > 300
+        for: 1m
+        labels:
+          severity: critical
+          component: consensus
+        annotations:
+          summary: "Consensus mechanism is stalled"
+          description: "No consensus decision made for {{ $value }} seconds on {{ $labels.instance }}"
+
+      - alert: HighConsensusLatency
+        expr: histogram_quantile(0.95, rate(mesh_consensus_round_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: consensus
+        annotations:
+          summary: "High consensus latency"
+          description: "95th percentile consensus round duration is {{ $value }}s on {{ $labels.instance }}"
+
+      - alert: ByzantineNodeDetected
+        expr: mesh_byzantine_nodes_detected > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: consensus
+        annotations:
+          summary: "Byzantine node detected"
+          description: "{{ $value }} Byzantine nodes detected in the network"
+
+      - alert: LeaderElectionFailing
+        expr: mesh_leader_election_failures_total > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: consensus
+        annotations:
+          summary: "Leader election is failing"
+          description: "Leader election has failed {{ $value }} times on {{ $labels.instance }}"
+
+  # ============================================================================
+  # FEDERATED LEARNING ALERTS
+  # ============================================================================
+  
+  - name: federated_learning
+    rules:
+      - alert: TrainingRoundStalled
+        expr: time() - mesh_fl_last_round_timestamp > 1800
+        for: 5m
+        labels:
+          severity: warning
+          component: federated_learning
+        annotations:
+          summary: "Federated learning round is stalled"
+          description: "No training round completed for {{ $value }} seconds"
+
+      - alert: LowParticipationRate
+        expr: mesh_fl_participation_rate < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: federated_learning
+        annotations:
+          summary: "Low participation rate in federated learning"
+          description: "Participation rate is {{ $value }} (below 50%)"
+
+      - alert: ModelConvergenceSlowing
+        expr: deriv(mesh_fl_model_accuracy[30m]) < 0.001
+        for: 15m
+        labels:
+          severity: warning
+          component: federated_learning
+        annotations:
+          summary: "Model convergence is slowing"
+          description: "Model accuracy improvement rate is {{ $value }} over the last 30 minutes"
+
+      - alert: AggregationFailing
+        expr: mesh_fl_aggregation_failures_total > 3
+        for: 5m
+        labels:
+          severity: warning
+          component: federated_learning
+        annotations:
+          summary: "Model aggregation is failing"
+          description: "Model aggregation has failed {{ $value }} times"
+
+  # ============================================================================
+  # SECURITY ALERTS
+  # ============================================================================
+  
+  - name: security
+    rules:
+      - alert: AuthenticationFailures
+        expr: rate(mesh_authentication_failures_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Authentication failure rate is {{ $value }} failures/sec on {{ $labels.instance }}"
+
+      - alert: UnauthorizedAccess
+        expr: mesh_unauthorized_access_attempts_total > 5
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Unauthorized access attempts detected"
+          description: "{{ $value }} unauthorized access attempts detected on {{ $labels.instance }}"
+
+      - alert: CertificateExpiringSoon
+        expr: (mesh_certificate_expiry_timestamp - time()) / 86400 < 7
+        for: 1h
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Certificate expiring soon"
+          description: "Certificate for {{ $labels.instance }} expires in {{ $value }} days"
+
+      - alert: CertificateExpired
+        expr: mesh_certificate_expiry_timestamp < time()
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Certificate has expired"
+          description: "Certificate for {{ $labels.instance }} has expired"
+
+  # ============================================================================
+  # APPLICATION ALERTS
+  # ============================================================================
+  
+  - name: application
+    rules:
+      - alert: HighErrorRate
+        expr: rate(mesh_http_requests_total{status=~"5.."}[5m]) / rate(mesh_http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      - alert: ApplicationDown
+        expr: up{job="agent-mesh-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "Application is down"
+          description: "Application {{ $labels.instance }} has been down for more than 1 minute"
+
+      - alert: HealthCheckFailing
+        expr: mesh_health_check_status == 0
+        for: 3m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "Health check is failing"
+          description: "Health check is failing on {{ $labels.instance }}"
+
+      - alert: DatabaseConnectionFailing
+        expr: mesh_database_connection_failures_total > 5
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection is failing"
+          description: "Database connection has failed {{ $value }} times on {{ $labels.instance }}"
+
+  # ============================================================================
+  # PERFORMANCE ALERTS
+  # ============================================================================
+  
+  - name: performance
+    rules:
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(mesh_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s on {{ $labels.instance }}"
+
+      - alert: HighThroughputUtilization
+        expr: rate(mesh_operations_total[5m]) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "High throughput utilization"
+          description: "Operation rate is {{ $value }} ops/sec on {{ $labels.instance }}"
+
+      - alert: MemoryLeak
+        expr: increase(mesh_memory_usage_bytes[1h]) > 1000000000
+        for: 30m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "Potential memory leak detected"
+          description: "Memory usage increased by {{ $value | humanizeBytes }} in the last hour on {{ $labels.instance }}"
