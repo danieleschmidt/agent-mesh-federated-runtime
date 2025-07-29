@@ -270,7 +270,7 @@ CMD ["sh", "-c", "node_exporter --web.listen-address=:9100 & agent-mesh --enable
 # =============================================================================
 # GPU stage - With CUDA support for ML acceleration
 # =============================================================================
-FROM nvidia/cuda:11.8-runtime-ubuntu20.04 as gpu
+FROM nvidia/cuda:12.9.1-runtime-ubuntu20.04 as gpu
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
