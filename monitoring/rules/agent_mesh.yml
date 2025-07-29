@@ -1,0 +1,123 @@
+groups:
+  - name: agent_mesh
+    rules:
+    
+    # Node Health Rules
+    - alert: AgentMeshNodeDown
+      expr: up{job="agent-mesh-nodes"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Agent Mesh node is down"
+        description: "Agent Mesh node {{ $labels.instance }} has been down for more than 1 minute."
+        
+    - alert: AgentMeshHighMemoryUsage
+      expr: (process_resident_memory_bytes{job="agent-mesh-nodes"} / 1024 / 1024) > 1000
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage on Agent Mesh node"
+        description: "Agent Mesh node {{ $labels.instance }} is using {{ $value }}MB of memory."
+        
+    # P2P Network Rules
+    - alert: P2PConnectionsLow
+      expr: agent_mesh_p2p_connected_peers < 2
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Low P2P connections"
+        description: "Agent Mesh node {{ $labels.instance }} has only {{ $value }} P2P connections."
+        
+    - alert: P2PNetworkPartition
+      expr: agent_mesh_p2p_network_partition_score > 0.5
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "P2P network partition detected"
+        description: "Network partition score of {{ $value }} detected in Agent Mesh."
+        
+    # Federated Learning Rules
+    - alert: FederatedLearningRoundStalled
+      expr: time() - agent_mesh_federated_last_round_timestamp > 600
+      for: 0m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Federated learning round stalled"
+        description: "No federated learning progress for more than 10 minutes on {{ $labels.instance }}."
+        
+    - alert: FederatedLearningLowParticipation
+      expr: agent_mesh_federated_round_participants < 3
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Low federated learning participation"
+        description: "Only {{ $value }} participants in current federated learning round."
+        
+    # Consensus Rules
+    - alert: ConsensusFailureRate
+      expr: rate(agent_mesh_consensus_failures_total[5m]) > 0.1
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "High consensus failure rate"
+        description: "Consensus failure rate of {{ $value }} per second on {{ $labels.instance }}."
+        
+    - alert: ConsensusLatencyHigh
+      expr: agent_mesh_consensus_duration_seconds_p95 > 5.0
+      for: 3m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High consensus latency"
+        description: "95th percentile consensus latency is {{ $value }}s on {{ $labels.instance }}."
+        
+    # API Health Rules
+    - alert: APIHighErrorRate
+      expr: rate(agent_mesh_api_requests_total{status=~"5.."}[5m]) / rate(agent_mesh_api_requests_total[5m]) > 0.05
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High API error rate"
+        description: "API error rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}."
+        
+    - alert: APIResponseTimeHigh
+      expr: agent_mesh_api_request_duration_seconds_p95 > 2.0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High API response time"
+        description: "95th percentile API response time is {{ $value }}s on {{ $labels.instance }}."
+        
+  - name: agent_mesh_aggregated
+    rules:
+    
+    # Mesh Network Health Score
+    - record: agent_mesh:network_health_score
+      expr: |
+        (
+          (avg(up{job="agent-mesh-nodes"}) * 0.3) +
+          (min(agent_mesh_p2p_connected_peers) / 10 * 0.2) +
+          ((1 - rate(agent_mesh_consensus_failures_total[5m])) * 0.3) +
+          (min(agent_mesh_federated_round_participants) / 10 * 0.2)
+        )
+        
+    # Overall System Load
+    - record: agent_mesh:system_load_avg
+      expr: avg(rate(process_cpu_seconds_total{job="agent-mesh-nodes"}[5m]))
+      
+    # Network Throughput
+    - record: agent_mesh:network_throughput_ops_per_sec
+      expr: sum(rate(agent_mesh_p2p_messages_total[5m]))
+      
+    # Federated Learning Progress Rate
+    - record: agent_mesh:federated_progress_rate
+      expr: rate(agent_mesh_federated_rounds_completed_total[1h])

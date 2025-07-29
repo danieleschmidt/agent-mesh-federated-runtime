@@ -5,7 +5,7 @@
   "main": "src/web/dashboard/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/agent-mesh-federated-runtime.git"
+    "url": "https://github.com/danieleschmidt/agent-mesh-federated-runtime.git"
   },
   "keywords": [
     "federated-learning",
@@ -20,9 +20,9 @@
   "author": "Daniel Schmidt <daniel@terragon.ai>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/your-org/agent-mesh-federated-runtime/issues"
+    "url": "https://github.com/danieleschmidt/agent-mesh-federated-runtime/issues"
   },
-  "homepage": "https://github.com/your-org/agent-mesh-federated-runtime#readme",
+  "homepage": "https://github.com/danieleschmidt/agent-mesh-federated-runtime#readme",
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
@@ -114,6 +114,6 @@
   },
   "funding": {
     "type": "github",
-    "url": "https://github.com/sponsors/your-org"
+    "url": "https://github.com/sponsors/danieleschmidt"
   }
 }
