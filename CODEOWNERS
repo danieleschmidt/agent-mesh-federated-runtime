@@ -1,0 +1,29 @@
+# Global code owners
+* @danieleschmidt
+
+# Core architecture and networking
+/src/agent_mesh/core/ @danieleschmidt
+/src/agent_mesh/protocols/ @danieleschmidt
+
+# Federated learning components  
+/src/agent_mesh/federated/ @danieleschmidt
+
+# Security and cryptography
+/src/agent_mesh/security/ @danieleschmidt
+/src/agent_mesh/privacy/ @danieleschmidt
+
+# Testing infrastructure
+/tests/ @danieleschmidt
+
+# Documentation
+/docs/ @danieleschmidt
+README.md @danieleschmidt
+SECURITY.md @danieleschmidt
+
+# Infrastructure and deployment
+/k8s/ @danieleschmidt
+Dockerfile @danieleschmidt
+docker-compose.yml @danieleschmidt
+
+# GitHub workflows and CI/CD
+/.github/ @danieleschmidt
