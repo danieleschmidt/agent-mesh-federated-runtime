@@ -1,0 +1,31 @@
+# Codecov configuration for Agent Mesh Federated Runtime
+coverage:
+  status:
+    project:
+      default:
+        target: 85%
+        threshold: 2%
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+  
+  ignore:
+    - "tests/"
+    - "**/*_pb2.py"
+    - "**/*_pb2_grpc.py"
+    - "**/conftest.py"
+    - "scripts/"
+
+comment:
+  layout: "reach,diff,flags,tree"
+  behavior: default
+  require_changes: false
+
+flags:
+  unit:
+    paths:
+      - src/agent_mesh/
+  integration:
+    paths:
+      - src/agent_mesh/
