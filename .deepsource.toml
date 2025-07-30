@@ -1,0 +1,82 @@
+# DeepSource configuration for Agent Mesh Federated Runtime
+# See https://deepsource.io/docs/config/
+
+version = 1
+
+# Python analyzer configuration
+[[analyzers]]
+name = "python"
+enabled = true
+dependency_file_paths = ["requirements.txt", "requirements-dev.txt", "pyproject.toml"]
+
+  [analyzers.meta]
+  runtime_version = "3.x.x"
+  max_line_length = 88
+  skip_doc_coverage = ["test_*", "*_test.py", "conftest.py"]
+
+# Docker analyzer
+[[analyzers]]
+name = "docker"
+enabled = true
+
+# Shell analyzer  
+[[analyzers]]
+name = "shell"
+enabled = true
+
+# YAML analyzer
+[[analyzers]]
+name = "yaml"
+enabled = true
+
+# Secrets analyzer
+[[analyzers]]
+name = "secrets"
+enabled = true
+
+# Test coverage analyzer
+[[analyzers]]
+name = "test-coverage"
+enabled = true
+
+# JavaScript/TypeScript analyzer (for dashboard)
+[[analyzers]]
+name = "javascript"
+enabled = true
+
+  [analyzers.meta]
+  environment = ["nodejs"]
+  style_guide = "standard"
+
+# Transformers configuration
+[[transformers]]
+name = "black"
+enabled = true
+
+[[transformers]]
+name = "isort"
+enabled = true
+
+[[transformers]]
+name = "autopep8"
+enabled = false  # Using black instead
+
+[[transformers]]
+name = "yapf"
+enabled = false  # Using black instead
+
+# Exclude patterns
+[exclude_patterns]
+patterns = [
+  "**/*_pb2.py",
+  "**/*_pb2_grpc.py", 
+  "**/migrations/**",
+  "**/node_modules/**",
+  "**/dist/**",  
+  "**/build/**",
+  "**/__pycache__/**",
+  "**/htmlcov/**",
+  ".venv/**",
+  "venv/**",
+  "**/conftest.py"
+]

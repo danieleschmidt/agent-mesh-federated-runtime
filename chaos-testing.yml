@@ -1,0 +1,261 @@
+# Chaos Engineering Configuration for Agent Mesh Federated Runtime
+# Framework-agnostic chaos testing scenarios
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chaos-testing-config
+  namespace: agent-mesh
+data:
+  chaos-experiments.yaml: |
+    # Network chaos experiments
+    network_experiments:
+      - name: network_partition
+        description: "Simulate network partition between nodes"
+        duration: "5m"
+        targets:
+          - mesh-nodes
+        failure_modes:
+          - partition_percentage: 30
+          - recovery_time: 120s
+      
+      - name: network_latency
+        description: "Add network latency to mesh communications"
+        duration: "3m"
+        targets:
+          - p2p-network
+        failure_modes:
+          - latency: 1000ms
+          - jitter: 100ms
+      
+      - name: packet_loss
+        description: "Introduce packet loss in mesh network"  
+        duration: "2m"
+        targets:
+          - libp2p-transport
+        failure_modes:
+          - loss_percentage: 15
+          - correlation: 10
+
+    # Resource chaos experiments
+    resource_experiments:
+      - name: cpu_stress
+        description: "Apply CPU stress to federated learning nodes"
+        duration: "4m"
+        targets:
+          - trainer-nodes
+        failure_modes:
+          - cpu_load: 90
+          - workers: 4
+      
+      - name: memory_pressure
+        description: "Create memory pressure during model training"
+        duration: "3m"
+        targets:
+          - aggregator-nodes
+        failure_modes:
+          - memory_percentage: 85
+          - swap_usage: true
+      
+      - name: disk_pressure
+        description: "Fill disk space during model storage"
+        duration: "2m"
+        targets:
+          - storage-nodes
+        failure_modes:
+          - fill_percentage: 90
+          - path: "/tmp/chaos"
+
+    # Application chaos experiments  
+    application_experiments:
+      - name: process_kill
+        description: "Kill random mesh node processes"
+        duration: "1m"
+        targets:
+          - mesh-node-process
+        failure_modes:
+          - signal: SIGKILL
+          - recovery_time: 30s
+      
+      - name: consensus_failure
+        description: "Simulate Byzantine node behavior"
+        duration: "5m"
+        targets:
+          - consensus-nodes
+        failure_modes:
+          - byzantine_percentage: 20
+          - behavior: random
+      
+      - name: training_corruption
+        description: "Corrupt model updates during federated learning"
+        duration: "3m"
+        targets:
+          - model-updates
+        failure_modes:
+          - corruption_rate: 10
+          - corruption_type: gaussian_noise
+
+    # Infrastructure chaos experiments
+    infrastructure_experiments:
+      - name: pod_delete
+        description: "Delete random pods in mesh cluster"
+        duration: "2m"
+        targets:
+          - deployment/agent-mesh
+        failure_modes:
+          - deletion_percentage: 25
+          - grace_period: 0
+      
+      - name: node_drain
+        description: "Drain Kubernetes nodes running mesh components"
+        duration: "5m"
+        targets:
+          - k8s-worker-nodes
+        failure_modes:
+          - node_count: 1
+          - drain_timeout: 300s
+
+  validation-criteria.yaml: |
+    # Chaos experiment validation criteria
+    validation_rules:
+      network_partition:
+        success_criteria:
+          - metric: "mesh_connectivity_recovered"
+            threshold: "> 95%"
+            within: "2m"
+          - metric: "consensus_finality_time"
+            threshold: "< 30s"
+            after_recovery: true
+      
+      byzantine_consensus:
+        success_criteria:
+          - metric: "consensus_agreement_rate"
+            threshold: "> 66%"
+            during_chaos: true
+          - metric: "network_partition_tolerance"
+            threshold: "true"
+            condition: "f < n/3"
+      
+      federated_learning:
+        success_criteria:
+          - metric: "training_convergence"
+            threshold: "continues"
+            tolerance: "15% degradation"
+          - metric: "model_accuracy"
+            threshold: "> baseline * 0.9"
+            after_recovery: true
+
+  monitoring-setup.yaml: |
+    # Monitoring configuration during chaos experiments
+    monitoring:
+      metrics_collection:
+        interval: 5s
+        retention: 1h
+        
+      key_metrics:
+        # Network metrics
+        - mesh_node_count
+        - peer_connection_count
+        - message_success_rate
+        - network_latency_p99
+        
+        # Consensus metrics
+        - consensus_round_time
+        - byzantine_node_count
+        - agreement_success_rate
+        
+        # Training metrics
+        - training_round_completion
+        - model_accuracy_trend
+        - aggregation_success_rate
+        
+        # Resource metrics
+        - cpu_utilization
+        - memory_usage_bytes
+        - disk_io_operations
+        
+      alerting:
+        - name: "chaos_experiment_failure"
+          condition: "validation_failure"
+          severity: "critical"
+          
+        - name: "system_degradation"
+          condition: "performance < baseline * 0.5"
+          severity: "warning"
+
+  recovery-procedures.yaml: |
+    # Automated recovery procedures
+    recovery:
+      automatic_recovery:
+        enabled: true
+        timeout: 300s
+        
+      recovery_steps:
+        network_partition:
+          - restore_network_connectivity
+          - verify_peer_discovery
+          - validate_consensus_participation
+          - check_training_resumption
+          
+        resource_exhaustion:
+          - scale_up_resources
+          - redistribute_workload
+          - clear_resource_pressure
+          - validate_performance_recovery
+          
+        process_failure:
+          - restart_failed_processes
+          - restore_from_checkpoint
+          - rejoin_mesh_network
+          - synchronize_state
+          
+      validation_checks:
+        - mesh_topology_complete
+        - consensus_operational
+        - training_active
+        - all_nodes_responsive
+
+---
+# Chaos testing schedule
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chaos-schedule
+  namespace: agent-mesh
+data:
+  schedule.yaml: |
+    # Scheduled chaos experiments
+    scheduled_experiments:
+      daily:
+        # Light chaos during business hours
+        - time: "10:00"
+          experiment: "network_latency"
+          duration: "2m"
+          
+        - time: "14:00" 
+          experiment: "cpu_stress"
+          duration: "3m"
+          
+      weekly:
+        # More intensive chaos during maintenance windows
+        - day: "saturday"
+          time: "02:00"
+          experiment: "network_partition"
+          duration: "10m"
+          
+        - day: "sunday"
+          time: "03:00"
+          experiment: "byzantine_consensus"
+          duration: "15m"
+          
+      monthly:
+        # Full disaster recovery testing
+        - day: "first_saturday"
+          time: "01:00"
+          experiment: "full_cluster_chaos"
+          duration: "30m"
+          scenarios:
+            - node_drain
+            - network_partition
+            - process_kill
+            - resource_pressure
