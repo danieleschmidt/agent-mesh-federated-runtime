@@ -1,0 +1,398 @@
+{
+  "agent_mesh_overview": {
+    "dashboard": {
+      "id": null,
+      "title": "Agent Mesh - System Overview",
+      "tags": ["agent-mesh", "overview"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Network Health Score",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "agent_mesh:network_health_score",
+              "legendFormat": "Health Score"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": 0},
+                  {"color": "yellow", "value": 0.5},
+                  {"color": "green", "value": 0.8}
+                ]
+              },
+              "min": 0,
+              "max": 1
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "Active Nodes",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "count(up{job=\"agent-mesh-nodes\"} == 1)",
+              "legendFormat": "Active Nodes"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "P2P Network Connections",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "agent_mesh_p2p_connected_peers",
+              "legendFormat": "{{ instance }}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Connections",
+              "min": 0
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Consensus Performance",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(agent_mesh_consensus_rounds_total[5m])",
+              "legendFormat": "Consensus Rate"
+            },
+            {
+              "expr": "agent_mesh_consensus_duration_seconds_p95",
+              "legendFormat": "95th Percentile Latency"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Federated Learning Progress",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "agent_mesh_federated_rounds_completed_total",
+              "legendFormat": "Completed Rounds"
+            },
+            {
+              "expr": "agent_mesh_federated_round_participants",
+              "legendFormat": "Participants"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "API Request Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(agent_mesh_api_requests_total[5m])",
+              "legendFormat": "{{ method }} {{ status }}"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "Memory Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "process_resident_memory_bytes{job=\"agent-mesh-nodes\"} / 1024 / 1024",
+              "legendFormat": "{{ instance }}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Memory (MB)",
+              "min": 0
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "CPU Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(process_cpu_seconds_total{job=\"agent-mesh-nodes\"}[5m]) * 100",
+              "legendFormat": "{{ instance }}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "CPU %",
+              "min": 0,
+              "max": 100
+            }
+          ]
+        }
+      ],
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "refresh": "30s"
+    }
+  },
+  "consensus_deep_dive": {
+    "dashboard": {
+      "id": null,
+      "title": "Agent Mesh - Consensus Deep Dive",
+      "tags": ["agent-mesh", "consensus"],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Consensus Algorithm Performance",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(agent_mesh_consensus_duration_seconds_bucket[5m]))",
+              "legendFormat": "95th Percentile"
+            },
+            {
+              "expr": "histogram_quantile(0.50, rate(agent_mesh_consensus_duration_seconds_bucket[5m]))",
+              "legendFormat": "Median"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Consensus Failure Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(agent_mesh_consensus_failures_total[5m])",
+              "legendFormat": "{{ reason }}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Byzantine Node Detection",
+          "type": "table",
+          "targets": [
+            {
+              "expr": "agent_mesh_byzantine_nodes_detected_total",
+              "legendFormat": "{{ node_id }}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Vote Distribution",
+          "type": "piechart",
+          "targets": [
+            {
+              "expr": "agent_mesh_consensus_votes_total",
+              "legendFormat": "{{ vote_type }}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "federated_learning": {
+    "dashboard": {
+      "id": null,
+      "title": "Agent Mesh - Federated Learning",
+      "tags": ["agent-mesh", "federated-learning", "ml"],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Training Progress",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "agent_mesh_federated_model_accuracy",
+              "legendFormat": "Global Model Accuracy"
+            },
+            {
+              "expr": "agent_mesh_federated_model_loss",
+              "legendFormat": "Global Model Loss"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Client Participation",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "agent_mesh_federated_round_participants",
+              "legendFormat": "Active Participants"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Model Update Size Distribution",
+          "type": "histogram",
+          "targets": [
+            {
+              "expr": "agent_mesh_federated_update_size_bytes",
+              "legendFormat": "Update Size (bytes)"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Aggregation Performance",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "agent_mesh_federated_aggregation_duration_seconds",
+              "legendFormat": "Aggregation Time"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Privacy Budget Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "agent_mesh_privacy_epsilon_consumed",
+              "legendFormat": "Epsilon Consumed"
+            },
+            {
+              "expr": "agent_mesh_privacy_epsilon_budget",
+              "legendFormat": "Epsilon Budget"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "network_topology": {
+    "dashboard": {
+      "id": null,
+      "title": "Agent Mesh - Network Topology",
+      "tags": ["agent-mesh", "network", "p2p"],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Network Graph",
+          "type": "nodeGraph",
+          "targets": [
+            {
+              "expr": "agent_mesh_p2p_connections",
+              "legendFormat": "{{ source }} -> {{ target }}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Message Flow",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(agent_mesh_p2p_messages_sent_total[5m])",
+              "legendFormat": "Messages Sent"
+            },
+            {
+              "expr": "rate(agent_mesh_p2p_messages_received_total[5m])",
+              "legendFormat": "Messages Received"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Network Latency Matrix",
+          "type": "heatmap",
+          "targets": [
+            {
+              "expr": "agent_mesh_p2p_latency_seconds",
+              "legendFormat": "{{ source }} -> {{ target }}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Network Partitions",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "agent_mesh_p2p_network_partition_score",
+              "legendFormat": "Partition Score"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": 0},
+                  {"color": "yellow", "value": 0.3},
+                  {"color": "red", "value": 0.5}
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "security_monitoring": {
+    "dashboard": {
+      "id": null,
+      "title": "Agent Mesh - Security Monitoring",
+      "tags": ["agent-mesh", "security"],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Security Events",
+          "type": "logs",
+          "targets": [
+            {
+              "expr": "{job=\"agent-mesh-nodes\"} |= \"SECURITY\"",
+              "legendFormat": "Security Logs"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Authentication Failures",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(agent_mesh_auth_failures_total[5m])",
+              "legendFormat": "{{ reason }}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Certificate Expiry",
+          "type": "table",
+          "targets": [
+            {
+              "expr": "agent_mesh_cert_expiry_days",
+              "legendFormat": "{{ cert_name }}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Suspicious Activity Score",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "agent_mesh_security_score",
+              "legendFormat": "Security Score"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,221 @@
+# Alertmanager configuration for Agent Mesh Federated Runtime
+global:
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alerts@agent-mesh.com'
+  smtp_auth_username: 'alerts@agent-mesh.com'
+  smtp_auth_password: 'smtp_password'
+  
+  # Default notification templates
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+  
+  # Time to resolve alert
+  resolve_timeout: 5m
+
+# Template files
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Routing configuration
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 5s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'web.hook'
+  
+  routes:
+    # Critical alerts go to PagerDuty and Slack
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 5s
+      group_interval: 5s
+      repeat_interval: 1h
+      
+    # Consensus and network issues
+    - match_re:
+        alertname: '(ConsensusFailureRate|P2PNetworkPartition|AgentMeshNodeDown)'
+      receiver: 'network-ops'
+      group_wait: 10s
+      repeat_interval: 30m
+      
+    # Federated learning alerts
+    - match_re:
+        alertname: '(FederatedLearning.*|ModelTraining.*)'
+      receiver: 'ml-team'
+      group_wait: 30s
+      repeat_interval: 2h
+      
+    # API and performance issues
+    - match_re:
+        alertname: '(API.*|HighMemoryUsage|HighCPUUsage)'
+      receiver: 'platform-team'
+      group_wait: 15s
+      repeat_interval: 1h
+      
+    # Development environment alerts
+    - match:
+        environment: development
+      receiver: 'dev-team'
+      group_wait: 30s
+      repeat_interval: 6h
+
+# Inhibition rules
+inhibit_rules:
+  # Inhibit warning alerts when critical alerts are firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['instance', 'job']
+    
+  # Inhibit P2P connection warnings when node is down
+  - source_match:
+      alertname: 'AgentMeshNodeDown'
+    target_match_re:
+      alertname: 'P2P.*'
+    equal: ['instance']
+    
+  # Inhibit API errors when node is down
+  - source_match:
+      alertname: 'AgentMeshNodeDown'
+    target_match_re:
+      alertname: 'API.*'
+    equal: ['instance']
+
+# Notification receivers
+receivers:
+  - name: 'web.hook'
+    webhook_configs:
+      - url: 'http://localhost:8080/webhook'
+        send_resolved: true
+        http_config:
+          basic_auth:
+            username: 'webhook_user'
+            password: 'webhook_password'
+        
+  - name: 'critical-alerts'
+    # PagerDuty for critical issues
+    pagerduty_configs:
+      - service_key: 'YOUR_PAGERDUTY_SERVICE_KEY'
+        description: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        details:
+          severity: '{{ .GroupLabels.severity }}'
+          environment: '{{ .GroupLabels.environment }}'
+          details: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+    
+    # Slack for immediate notification
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/CRITICAL/WEBHOOK'
+        channel: '#alerts-critical'
+        title: '🚨 Critical Alert: {{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          {{ end }}
+        send_resolved: true
+        
+  - name: 'network-ops'
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/NETWORK/WEBHOOK'
+        channel: '#network-ops'
+        title: '🌐 Network Alert: {{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Instance:* {{ .Labels.instance }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+    
+    email_configs:
+      - to: 'network-ops@agent-mesh.com'
+        subject: '[Agent Mesh] Network Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          Network alert detected in Agent Mesh:
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Instance: {{ .Labels.instance }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          {{ end }}
+          
+  - name: 'ml-team'
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/ML/WEBHOOK'
+        channel: '#ml-alerts'
+        title: '🤖 ML Alert: {{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Instance:* {{ .Labels.instance }}
+          {{ end }}
+        send_resolved: true
+        
+    email_configs:
+      - to: 'ml-team@agent-mesh.com'
+        subject: '[Agent Mesh ML] {{ .GroupLabels.alertname }}'
+        body: |
+          Machine Learning alert in Agent Mesh:
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt }}
+          {{ end }}
+          
+  - name: 'platform-team'
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/PLATFORM/WEBHOOK'
+        channel: '#platform-alerts'
+        title: '⚡ Platform Alert: {{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Instance:* {{ .Labels.instance }}
+          {{ end }}
+        send_resolved: true
+        
+  - name: 'dev-team'
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/DEV/WEBHOOK'
+        channel: '#dev-alerts'
+        title: '🔧 Dev Alert: {{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Environment:* {{ .Labels.environment }}
+          {{ end }}
+        send_resolved: true
+
+# Time intervals for muting notifications
+time_intervals:
+  - name: 'working-hours'
+    time_intervals:
+      - times:
+          - start_time: '09:00'
+            end_time: '17:00'
+        weekdays: ['monday:friday']
+        
+  - name: 'weekends'
+    time_intervals:
+      - weekdays: ['saturday', 'sunday']
+        
+  - name: 'maintenance-window'
+    time_intervals:
+      - times:
+          - start_time: '02:00'
+            end_time: '04:00'
+        weekdays: ['sunday']
+
+# Mute rules
+mute_time_intervals:
+  - name: 'weekend-maintenance'
+    time_intervals: ['maintenance-window']

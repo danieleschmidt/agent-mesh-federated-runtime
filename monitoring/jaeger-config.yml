@@ -1,0 +1,215 @@
+# Jaeger distributed tracing configuration for Agent Mesh
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: agent-mesh-jaeger
+  namespace: agent-mesh
+spec:
+  strategy: production
+  
+  # Storage configuration
+  storage:
+    type: elasticsearch
+    elasticsearch:
+      server-urls: http://elasticsearch:9200
+      index-prefix: agent-mesh
+      
+  # Collector configuration  
+  collector:
+    replicas: 2
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+    config: |
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:14250
+            http:
+              endpoint: 0.0.0.0:14268
+        jaeger:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:14250
+            thrift_http:
+              endpoint: 0.0.0.0:14268
+            thrift_compact:
+              endpoint: 0.0.0.0:6831
+            thrift_binary:
+              endpoint: 0.0.0.0:6832
+              
+      processors:
+        batch:
+          timeout: 1s
+          send_batch_size: 1024
+          send_batch_max_size: 2048
+        memory_limiter:
+          limit_mib: 512
+          
+      exporters:
+        elasticsearch:
+          endpoints: [http://elasticsearch:9200]
+          index: agent-mesh-spans
+          
+      service:
+        pipelines:
+          traces:
+            receivers: [otlp, jaeger]
+            processors: [memory_limiter, batch]
+            exporters: [elasticsearch]
+            
+    # Service configuration
+    service:
+      type: ClusterIP
+      ports:
+        - name: grpc
+          port: 14250
+          targetPort: 14250
+        - name: http
+          port: 14268
+          targetPort: 14268
+        - name: thrift-compact
+          port: 6831
+          targetPort: 6831
+          protocol: UDP
+        - name: thrift-binary
+          port: 6832
+          targetPort: 6832
+          protocol: UDP
+          
+  # Query service configuration
+  query:
+    replicas: 2
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    service:
+      type: ClusterIP
+      ports:
+        - name: http-query
+          port: 16686
+          targetPort: 16686
+          
+  # Agent configuration (for sidecar deployment)
+  agent:
+    strategy: DaemonSet
+    resources:
+      limits:
+        cpu: 200m
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 64Mi
+        
+---
+# OpenTelemetry Collector configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: agent-mesh
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'agent-mesh'
+              static_configs:
+                - targets: ['localhost:9090']
+                
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+      memory_limiter:
+        limit_mib: 256
+      attributes:
+        actions:
+          - key: service.name
+            value: agent-mesh
+            action: upsert
+          - key: service.version
+            value: "1.0.0"
+            action: upsert
+            
+    exporters:
+      jaeger:
+        endpoint: jaeger-collector:14250
+        tls:
+          insecure: true
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+      logging:
+        loglevel: debug
+        
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, attributes, batch]
+          exporters: [jaeger, logging]
+        metrics:
+          receivers: [otlp, prometheus]
+          processors: [memory_limiter, batch]
+          exporters: [prometheus, logging]
+          
+---
+# OpenTelemetry Collector deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: agent-mesh
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-contrib:0.88.0
+        command:
+          - "/otelcol-contrib"
+          - "--config=/etc/otel/config.yaml"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/otel
+        ports:
+        - containerPort: 4317
+          name: otlp-grpc
+        - containerPort: 4318
+          name: otlp-http
+        - containerPort: 8889
+          name: prometheus
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+      volumes:
+      - name: config
+        configMap:
+          name: otel-collector-config

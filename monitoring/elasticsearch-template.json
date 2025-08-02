@@ -1,0 +1,253 @@
+{
+  "index_patterns": ["agent-mesh-*"],
+  "settings": {
+    "number_of_shards": 2,
+    "number_of_replicas": 1,
+    "index.refresh_interval": "30s",
+    "index.mapping.total_fields.limit": 2000,
+    "analysis": {
+      "analyzer": {
+        "agent_mesh_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "agent_mesh_stopwords"
+          ]
+        }
+      },
+      "filter": {
+        "agent_mesh_stopwords": {
+          "type": "stop",
+          "stopwords": [
+            "the", "is", "at", "which", "on", "and", "a", "an", "as", "are", "was", "were", "been", "be"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "@timestamp": {
+        "type": "date"
+      },
+      "timestamp": {
+        "type": "date"
+      },
+      "level": {
+        "type": "keyword"
+      },
+      "logger": {
+        "type": "keyword"
+      },
+      "message": {
+        "type": "text",
+        "analyzer": "agent_mesh_analyzer",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "service_name": {
+        "type": "keyword"
+      },
+      "environment": {
+        "type": "keyword"
+      },
+      "cluster_name": {
+        "type": "keyword"
+      },
+      "node_id": {
+        "type": "keyword"
+      },
+      "instance": {
+        "type": "keyword"
+      },
+      "kubernetes": {
+        "properties": {
+          "namespace_name": {
+            "type": "keyword"
+          },
+          "pod_name": {
+            "type": "keyword"
+          },
+          "container_name": {
+            "type": "keyword"
+          },
+          "labels": {
+            "type": "object",
+            "dynamic": true
+          }
+        }
+      },
+      "consensus": {
+        "properties": {
+          "round": {
+            "type": "long"
+          },
+          "proposal_id": {
+            "type": "keyword"
+          },
+          "vote_type": {
+            "type": "keyword"
+          },
+          "duration_ms": {
+            "type": "long"
+          },
+          "participants": {
+            "type": "long"
+          }
+        }
+      },
+      "federated_learning": {
+        "properties": {
+          "round": {
+            "type": "long"
+          },
+          "model_version": {
+            "type": "keyword"
+          },
+          "accuracy": {
+            "type": "float"
+          },
+          "loss": {
+            "type": "float"
+          },
+          "participants": {
+            "type": "long"
+          },
+          "aggregation_time_ms": {
+            "type": "long"
+          }
+        }
+      },
+      "p2p_network": {
+        "properties": {
+          "peer_id": {
+            "type": "keyword"
+          },
+          "connection_type": {
+            "type": "keyword"
+          },
+          "latency_ms": {
+            "type": "long"
+          },
+          "bandwidth_mbps": {
+            "type": "float"
+          },
+          "message_type": {
+            "type": "keyword"
+          },
+          "message_size_bytes": {
+            "type": "long"
+          }
+        }
+      },
+      "security": {
+        "properties": {
+          "event_type": {
+            "type": "keyword"
+          },
+          "severity": {
+            "type": "keyword"
+          },
+          "source_ip": {
+            "type": "ip"
+          },
+          "user_agent": {
+            "type": "text",
+            "fields": {
+              "keyword": {
+                "type": "keyword",
+                "ignore_above": 256
+              }
+            }
+          },
+          "certificate_cn": {
+            "type": "keyword"
+          },
+          "auth_method": {
+            "type": "keyword"
+          }
+        }
+      },
+      "performance": {
+        "properties": {
+          "operation": {
+            "type": "keyword"
+          },
+          "duration_ms": {
+            "type": "long"
+          },
+          "cpu_usage_percent": {
+            "type": "float"
+          },
+          "memory_usage_mb": {
+            "type": "long"
+          },
+          "throughput_ops_per_sec": {
+            "type": "float"
+          }
+        }
+      },
+      "api": {
+        "properties": {
+          "method": {
+            "type": "keyword"
+          },
+          "endpoint": {
+            "type": "keyword"
+          },
+          "status_code": {
+            "type": "long"
+          },
+          "response_time_ms": {
+            "type": "long"
+          },
+          "user_id": {
+            "type": "keyword"
+          },
+          "request_id": {
+            "type": "keyword"
+          }
+        }
+      },
+      "error": {
+        "properties": {
+          "code": {
+            "type": "keyword"
+          },
+          "type": {
+            "type": "keyword"
+          },
+          "stack_trace": {
+            "type": "text",
+            "index": false
+          },
+          "context": {
+            "type": "object",
+            "dynamic": true
+          }
+        }
+      },
+      "trace": {
+        "properties": {
+          "trace_id": {
+            "type": "keyword"
+          },
+          "span_id": {
+            "type": "keyword"
+          },
+          "parent_span_id": {
+            "type": "keyword"
+          },
+          "operation_name": {
+            "type": "keyword"
+          }
+        }
+      }
+    }
+  }
+}
