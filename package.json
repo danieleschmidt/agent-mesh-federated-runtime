@@ -48,6 +48,8 @@
     "security": "npm run security:python && npm run security:js",
     "security:python": "bandit -r src/ && safety check",
     "security:js": "cd src/web/dashboard && npm audit",
+    "validate:sdlc": "python3 scripts/validate-checkpoint-implementation.py",
+    "validate:all": "npm run lint && npm run security && npm run validate:sdlc && npm test",
     "docs": "npm run docs:build && npm run docs:serve",
     "docs:build": "sphinx-build -b html docs/ docs/_build/html/",
     "docs:serve": "python -m http.server 8080 --directory docs/_build/html/",
