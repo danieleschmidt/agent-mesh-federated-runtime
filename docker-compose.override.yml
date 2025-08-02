@@ -1,0 +1,105 @@
+# Docker Compose override for local development
+version: '3.8'
+
+# This file provides local development overrides
+# It's automatically loaded by docker-compose
+
+services:
+  # Development overrides for bootstrap node
+  bootstrap-node:
+    environment:
+      - LOG_LEVEL=DEBUG
+      - DEBUG_P2P=true
+    volumes:
+      # Mount source code for live reloading
+      - ./src:/app/src:cached
+      - ./configs:/app/configs:cached
+    ports:
+      # Add debug port
+      - "5678:5678"  # Python debugger
+
+  # Development overrides for mesh nodes
+  mesh-node-1:
+    environment:
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./src:/app/src:cached
+
+  mesh-node-2:
+    environment:
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./src:/app/src:cached
+
+  mesh-node-3:
+    environment:
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./src:/app/src:cached
+
+  # Development database with exposed port for debugging
+  postgres:
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_LOG_STATEMENT=all
+    command: >
+      postgres
+      -c log_statement=all
+      -c log_destination=stderr
+      -c log_min_duration_statement=0
+
+  # Redis with debug configuration
+  redis:
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --appendonly yes
+      --loglevel debug
+      --save 60 1
+
+  # Grafana with development settings
+  grafana:
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+      - GF_LOG_LEVEL=debug
+    volumes:
+      # Mount custom dashboards for development
+      - ./monitoring/grafana/dev-dashboards:/var/lib/grafana/dashboards:ro
+
+  # Add development-specific services
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: agent-mesh-mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - mesh-network
+    profiles:
+      - development
+
+  # File browser for easy file management
+  filebrowser:
+    image: filebrowser/filebrowser:v2.23.0
+    container_name: agent-mesh-filebrowser
+    ports:
+      - "8088:80"
+    volumes:
+      - .:/srv
+      - filebrowser_data:/database
+      - filebrowser_config:/config
+    environment:
+      - FB_BASEURL=/files
+    networks:
+      - mesh-network
+    profiles:
+      - development
+
+volumes:
+  filebrowser_data:
+    driver: local
+  filebrowser_config:
+    driver: local

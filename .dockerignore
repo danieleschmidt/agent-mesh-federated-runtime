@@ -1,0 +1,206 @@
+# Docker ignore file for Agent Mesh Federated Runtime
+
+# Version control
+.git/
+.gitignore
+.gitmodules
+.gitattributes
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+.virtualenv/
+
+# Testing
+.tox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+htmlcov/
+test-results.xml
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+log/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Development files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Node modules (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Documentation build
+docs/_build/
+docs/build/
+site/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# OS generated files
+Thumbs.db
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Security files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# Local configuration
+local/
+.local/
+config.local.*
+
+# Monitoring and metrics
+monitoring/data/
+grafana/data/
+prometheus/data/
+
+# Data directories
+data/
+backups/
+dumps/
+
+# Container-specific ignores
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Performance and profiling
+*.prof
+profile.stats
+benchmark_results/
+
+# Package manager files
+requirements*.txt
+pyproject.toml
+setup.py
+setup.cfg
+Pipfile
+Pipfile.lock
+poetry.lock
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+
+# Kubernetes
+k8s/
+kubernetes/
+helm/
+
+# Make and build tools
+Makefile
+*.mk
+build.sh
+deploy.sh
+
+# Documentation source (not the built docs)
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+AUTHORS
+CONTRIBUTORS
+
+# Project specific
+chaos-testing.yml
+performance-regression.yml
+renovate.json
+sonar-project.properties
+codecov.yml
