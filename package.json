@@ -81,7 +81,7 @@
     "release:dry": "semantic-release publish --dry-run"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
+    "concurrently": "^9.2.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "semantic-release": "^21.1.1"
