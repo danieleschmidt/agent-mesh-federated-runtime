@@ -1,401 +1,422 @@
-# Contributing to Agent Mesh Federated Runtime
+# 🤝 Contributing to Agent Mesh Federated Runtime
 
-Thank you for your interest in contributing to the Agent Mesh Federated Runtime! This project aims to create a robust, decentralized system for federated learning and multi-agent coordination.
+Thank you for your interest in contributing to the Agent Mesh Federated Runtime! This project aims to build the most robust, scalable, and secure decentralized platform for federated learning and multi-agent systems.
 
-## Table of Contents
+## 🎯 Contributing Overview
+
+We welcome contributions from everyone, whether you're:
+- 🐛 Reporting bugs
+- 💡 Suggesting features
+- 📝 Improving documentation
+- 💻 Contributing code
+- 🧪 Writing tests
+- 🔒 Enhancing security
+- 🌍 Translating content
+
+## 📋 Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
-- [Development Workflow](#development-workflow)
-- [Architecture Guidelines](#architecture-guidelines)
-- [Testing Requirements](#testing-requirements)
-- [Security Considerations](#security-considerations)
-- [Documentation Standards](#documentation-standards)
-- [Submission Guidelines](#submission-guidelines)
+- [Development Setup](#development-setup)
+- [Contributing Guidelines](#contributing-guidelines)
+- [Pull Request Process](#pull-request-process)
+- [Issue Guidelines](#issue-guidelines)
 - [Community](#community)
 
-## Code of Conduct
+## 📜 Code of Conduct
 
-This project and everyone participating in it is governed by our [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
+This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to `conduct@terragon.ai`.
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Python 3.9+ with asyncio support
-- Node.js 18+ and npm 8+ for dashboard components
-- Docker and Docker Compose for containerized testing
-- Git with LFS support for large test fixtures
+- **Python 3.9+** with pip
+- **Node.js 18+** with npm
+- **Docker** and Docker Compose
+- **Git** for version control
+- **Basic knowledge** of:
+  - Python async programming
+  - P2P networking concepts
+  - Federated learning fundamentals
 
-### Development Setup
+### Quick Setup
 
-1. **Fork and Clone**
+1. **Fork** the repository on GitHub
+2. **Clone** your fork locally:
    ```bash
-   git clone https://github.com/your-username/agent-mesh-federated-runtime.git
+   git clone https://github.com/YOUR_USERNAME/agent-mesh-federated-runtime.git
    cd agent-mesh-federated-runtime
    ```
-
-2. **Install Dependencies**
+3. **Set up development environment**:
    ```bash
-   # Install Python dependencies and development tools
-   pip install -e ".[dev]"
+   # Using VS Code Dev Containers (recommended)
+   code .  # Open in VS Code and use "Reopen in Container"
    
-   # Install Node.js dependencies for dashboard
-   cd src/web/dashboard && npm install && cd ../../..
-   
-   # Setup pre-commit hooks
-   pre-commit install
+   # Or setup locally
+   make setup-dev
+   ```
+4. **Create a branch** for your feature:
+   ```bash
+   git checkout -b feature/your-awesome-feature
    ```
 
-3. **Verify Installation**
-   ```bash
-   # Run unit tests
-   npm run test:unit
-   
-   # Run linting
-   npm run lint
-   
-   # Start development environment
-   npm run dev
-   ```
+## 🛠️ Development Setup
 
-4. **Environment Configuration**
-   ```bash
-   # Copy environment template
-   cp .env.example .env
-   
-   # Edit configuration as needed
-   vim .env
-   ```
+### Using Dev Containers (Recommended)
 
-## Development Workflow
+The easiest way to get started is using VS Code Dev Containers:
 
-### Branching Strategy
+1. Install VS Code and the Remote-Containers extension
+2. Open the project in VS Code
+3. Click "Reopen in Container" when prompted
+4. Everything will be set up automatically!
 
-We use a GitHub Flow-based approach:
+### Manual Setup
 
-- **main**: Production-ready code, protected branch
-- **develop**: Integration branch for ongoing development
-- **feature/xxx**: Feature development branches
-- **bugfix/xxx**: Bug fix branches
-- **hotfix/xxx**: Critical production fixes
-
-### Branch Naming Convention
-
-```
-feature/consensus-optimization
-bugfix/memory-leak-aggregation
-hotfix/security-vulnerability-cvs-2024-001
-docs/api-documentation-update
-refactor/networking-layer-cleanup
-```
-
-### Commit Message Format
-
-We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
-
-```
-<type>[optional scope]: <description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code refactoring
-- `perf`: Performance improvements
-- `test`: Adding or updating tests
-- `chore`: Maintenance tasks
-- `security`: Security-related changes
-
-**Examples:**
-```
-feat(consensus): implement PBFT optimization for large networks
-
-fix(networking): resolve memory leak in libp2p connection pooling
-
-security(crypto): update to latest NaCl version for vulnerability patch
-
-docs(api): add examples for federated learning configuration
-```
-
-### Pull Request Process
-
-1. **Create Feature Branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. **Develop and Test**
-   - Write code following our coding standards
-   - Add comprehensive tests for new functionality
-   - Update documentation as needed
-   - Ensure all tests pass locally
-
-3. **Pre-submission Checklist**
-   - [ ] All tests pass (`npm run test`)
-   - [ ] Code follows style guidelines (`npm run lint`)
-   - [ ] Security checks pass (`npm run security`)
-   - [ ] Documentation updated
-   - [ ] CHANGELOG.md updated (for significant changes)
-   - [ ] No merge conflicts with target branch
-
-4. **Submit Pull Request**
-   - Use descriptive title and detailed description
-   - Reference related issues using `Fixes #123` or `Closes #456`
-   - Add appropriate labels
-   - Request review from relevant maintainers
-
-## Architecture Guidelines
-
-### Design Principles
-
-1. **Decentralization First**: No single point of failure or central authority
-2. **Security by Design**: All communications encrypted, zero-trust architecture
-3. **Fault Tolerance**: Graceful degradation under adverse conditions
-4. **Scalability**: Horizontal scaling without performance degradation
-5. **Modularity**: Loosely coupled components with clear interfaces
-
-### Code Organization
-
-```
-src/
-├── core/              # Core system components
-│   ├── mesh/         # P2P mesh networking
-│   ├── consensus/    # Byzantine fault tolerance
-│   └── security/     # Cryptographic components
-├── federated/        # Federated learning algorithms
-├── agents/           # Multi-agent coordination
-├── protocols/        # Network protocol implementations
-├── api/              # REST/gRPC API interfaces
-└── web/              # Web dashboard and monitoring
-```
-
-### Coding Standards
-
-**Python Code Style:**
-- Follow PEP 8 with line length of 88 characters (Black default)
-- Use type hints for all function signatures
-- Comprehensive docstrings following Google style
-- Async/await for all I/O operations
-
-**JavaScript/TypeScript:**
-- Follow Airbnb style guide
-- Use TypeScript for type safety
-- Functional components with hooks for React
-- ESLint + Prettier for consistent formatting
-
-**Documentation:**
-- All public APIs must have comprehensive docstrings
-- Include usage examples in docstrings
-- Architecture Decision Records (ADRs) for significant design choices
-- Mermaid diagrams for complex workflows
-
-## Testing Requirements
-
-### Test Categories
-
-1. **Unit Tests** (`tests/unit/`)
-   - Test individual components in isolation
-   - Mock external dependencies
-   - Fast execution, comprehensive coverage
-   - Target: 95%+ code coverage
-
-2. **Integration Tests** (`tests/integration/`)
-   - Test component interactions
-   - Use real network connections (controlled environment)
-   - Database and external service integration
-   - Target: Critical user workflows covered
-
-3. **End-to-End Tests** (`tests/e2e/`)
-   - Full system testing with multiple nodes
-   - Real-world scenarios and failure conditions
-   - Performance and load testing
-   - Target: Major user journeys validated
-
-4. **Security Tests** (`tests/security/`)
-   - Cryptographic algorithm validation
-   - Attack simulation and resistance testing
-   - Vulnerability scanning integration
-   - Target: Security requirements verified
-
-### Test Guidelines
-
-- **Naming**: Test file names should mirror source files with `test_` prefix
-- **Structure**: Use AAA pattern (Arrange, Act, Assert)
-- **Fixtures**: Reusable test data in `tests/fixtures/`
-- **Mocking**: Use `pytest-mock` for Python, Jest for JavaScript
-- **Performance**: Include performance benchmarks for critical paths
-
-### Running Tests
+If you prefer to set up the environment manually:
 
 ```bash
-# Unit tests with coverage
-npm run test:unit
+# Install Python dependencies
+pip install -e ".[dev]"
 
-# Integration tests
-npm run test:integration
+# Install Node.js dependencies
+npm install
 
-# End-to-end tests (requires Docker)
-npm run test:e2e
+# Install pre-commit hooks
+pre-commit install
 
-# Performance benchmarks
-npm run test:performance
+# Setup environment variables
+cp .env.example .env
 
-# Security tests
-npm run security
-
-# All tests
-npm run test
+# Run tests to verify setup
+make test
 ```
 
-## Security Considerations
+### Available Commands
 
-### Security Review Process
+```bash
+# Development
+make dev          # Start development server
+make test         # Run all tests
+make lint         # Run linting
+make format       # Format code
+make docs         # Build documentation
 
-All security-related changes require additional review:
+# Docker
+make docker-build # Build Docker image
+make docker-run   # Run in Docker
+make docker-test  # Run tests in Docker
 
-1. **Cryptographic Changes**: Review by security team + external audit
-2. **Network Protocol Changes**: Threat modeling and penetration testing
-3. **Authentication/Authorization**: RBAC validation and privilege escalation testing
-4. **Data Handling**: Privacy impact assessment and compliance review
+# Cleanup
+make clean        # Clean build artifacts
+make clean-all    # Deep clean including caches
+```
 
-### Security Guidelines
+## 📋 Contributing Guidelines
 
-- **Never log sensitive data**: Keys, tokens, personal information
-- **Use secure defaults**: Fail closed, encrypt by default
-- **Validate all inputs**: Sanitize and validate external data
-- **Principle of least privilege**: Minimal permissions for all components
-- **Regular updates**: Keep dependencies current, monitor vulnerabilities
+### 🐛 Reporting Bugs
 
-### Vulnerability Reporting
+Before reporting a bug:
+1. Check if it's already reported in [Issues](https://github.com/your-org/agent-mesh-federated-runtime/issues)
+2. Test with the latest version
+3. Provide minimal reproduction steps
 
-For security vulnerabilities, please follow our [Security Policy](SECURITY.md):
-- **Private disclosure**: security@agent-mesh.org
-- **GPG key**: Available on project website
-- **Response time**: 48 hours acknowledgment, 90 days disclosure
+**Bug Report Template:**
+```markdown
+**Bug Description**
+Clear description of the bug
 
-## Documentation Standards
+**Steps to Reproduce**
+1. Step one
+2. Step two
+3. Bug appears
 
-### Required Documentation
+**Expected Behavior**
+What should happen
 
-1. **API Documentation**: Auto-generated from docstrings with examples
-2. **Architecture Decision Records**: Document significant design choices
-3. **User Guides**: Step-by-step tutorials for common use cases
-4. **Developer Guides**: Internal architecture and contribution guidelines
-5. **Deployment Guides**: Production deployment and configuration
+**Environment**
+- OS: [e.g., Ubuntu 22.04]
+- Python version: [e.g., 3.11.0]
+- Agent Mesh version: [e.g., 1.0.0]
 
-### Documentation Tools
+**Additional Context**
+Screenshots, logs, etc.
+```
 
-- **API Docs**: Sphinx with autodoc for Python, JSDoc for JavaScript
-- **Diagrams**: Mermaid for architecture, PlantUML for sequence diagrams
-- **Tutorials**: Markdown with runnable code examples
-- **Website**: GitHub Pages with automated deployment
+### 💡 Feature Requests
 
-### Writing Guidelines
+We love new ideas! Before submitting:
+1. Check existing [feature requests](https://github.com/your-org/agent-mesh-federated-runtime/issues?q=is%3Aissue+label%3Aenhancement)
+2. Consider if it fits the project scope
+3. Think about implementation complexity
 
-- **Clear and concise**: Avoid jargon, explain technical terms
-- **Examples included**: Show real-world usage patterns
-- **Keep current**: Update docs with code changes
-- **Multiple audiences**: Separate user and developer documentation
+**Feature Request Template:**
+```markdown
+**Feature Description**
+Clear description of the proposed feature
 
-## Submission Guidelines
+**Problem/Use Case**
+What problem does this solve?
+
+**Proposed Solution**
+How should it work?
+
+**Alternatives Considered**
+Other solutions you've considered
+
+**Additional Context**
+Mockups, examples, etc.
+```
+
+### 💻 Code Contributions
+
+#### Code Style
+
+We follow strict code quality standards:
+
+- **Python**: PEP 8 with Black formatting (88 char line length)
+- **JavaScript**: Prettier with ESLint
+- **Documentation**: Markdown with consistent formatting
+- **Commits**: Conventional Commits format
+
+#### Coding Standards
+
+```python
+# Good: Clear, documented, type-hinted
+async def aggregate_model_updates(
+    updates: List[ModelUpdate],
+    strategy: AggregationStrategy = AggregationStrategy.FEDAVG,
+    timeout: float = 30.0,
+) -> AggregatedModel:
+    """Aggregate model updates from multiple nodes.
+    
+    Args:
+        updates: List of model updates from participating nodes
+        strategy: Aggregation strategy to use
+        timeout: Maximum time to wait for aggregation
+        
+    Returns:
+        Aggregated model ready for distribution
+        
+    Raises:
+        AggregationError: If aggregation fails
+        TimeoutError: If aggregation times out
+    """
+    logger.info(f"Aggregating {len(updates)} model updates")
+    # Implementation here...
+```
+
+#### Testing Requirements
+
+All code contributions must include tests:
+
+- **Unit Tests**: Test individual functions/classes
+- **Integration Tests**: Test component interactions
+- **E2E Tests**: Test complete workflows (for major features)
+- **Performance Tests**: For performance-critical code
+
+```python
+# Example test structure
+import pytest
+from agent_mesh.consensus import PBFTConsensus
+
+class TestPBFTConsensus:
+    @pytest.fixture
+    async def consensus_engine(self):
+        return PBFTConsensus(fault_tolerance=0.33)
+    
+    async def test_consensus_proposal(self, consensus_engine):
+        """Test basic consensus proposal workflow."""
+        proposal = create_test_proposal()
+        result = await consensus_engine.propose(proposal)
+        assert result.status == ProposalStatus.ACCEPTED
+    
+    async def test_byzantine_fault_tolerance(self, consensus_engine):
+        """Test behavior with Byzantine nodes."""
+        # Test implementation...
+```
+
+#### Security Considerations
+
+Security is paramount. Please:
+
+- **Never** commit secrets, keys, or credentials
+- **Always** validate user inputs
+- **Use** established cryptographic libraries
+- **Follow** secure coding practices
+- **Consider** privacy implications of changes
+
+## 🔄 Pull Request Process
+
+### Before Submitting
+
+1. **Sync** with the latest main branch
+2. **Run** all tests and ensure they pass
+3. **Format** code with our standards
+4. **Update** documentation if needed
+5. **Add** tests for new functionality
 
 ### Pull Request Template
 
-When creating a pull request, use our template to ensure all information is provided:
-
 ```markdown
-## Description
-Brief description of changes and motivation.
+## 📋 Description
+Brief description of changes
 
-## Type of Change
+## 🎯 Type of Change
 - [ ] Bug fix (non-breaking change)
 - [ ] New feature (non-breaking change)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Breaking change (fix/feature causing existing functionality to change)
 - [ ] Documentation update
 
-## Testing
+## 🧪 Testing
 - [ ] Unit tests pass
 - [ ] Integration tests pass
 - [ ] Manual testing completed
 - [ ] Performance impact assessed
 
-## Security
-- [ ] Security review completed (if applicable)
-- [ ] No sensitive data exposed
-- [ ] Cryptographic changes audited (if applicable)
-
-## Documentation
-- [ ] Documentation updated
-- [ ] API documentation updated
-- [ ] CHANGELOG.md updated
-
-## Checklist
-- [ ] Code follows project style guidelines
+## 📋 Checklist
+- [ ] Code follows style guidelines
 - [ ] Self-review completed
-- [ ] Comments added for complex logic
-- [ ] No merge conflicts
+- [ ] Documentation updated
+- [ ] Tests added/updated
+- [ ] No security issues introduced
+
+## 🔗 Related Issues
+Fixes #(issue_number)
 ```
 
 ### Review Process
 
-1. **Automated Checks**: CI/CD pipeline runs tests and quality checks
-2. **Peer Review**: At least one maintainer review required
-3. **Security Review**: Additional review for security-sensitive changes
-4. **Documentation Review**: Technical writing review for documentation changes
-5. **Final Approval**: Maintainer approval and merge
+1. **Automated Checks**: CI/CD pipeline runs automatically
+2. **Code Review**: At least one maintainer reviews
+3. **Testing**: All tests must pass
+4. **Security Review**: For security-sensitive changes
+5. **Documentation**: Ensure docs are updated
+6. **Approval**: Required approvals from maintainers
 
-### Merge Requirements
+### After Merge
 
-- All CI/CD checks pass
-- At least one approved review from maintainer
-- No merge conflicts
-- Branch is up to date with target branch
-- Security review completed (if applicable)
+- **Monitor**: Watch for any issues post-merge
+- **Celebrate**: Your contribution is now part of the project! 🎉
+- **Stay Engaged**: Consider becoming a regular contributor
 
-## Community
+## 📝 Issue Guidelines
 
-### Getting Help
+### Issue Types
 
-- **Discord**: [Join our community](https://discord.gg/agent-mesh)
-- **GitHub Discussions**: For questions and general discussion
-- **GitHub Issues**: For bug reports and feature requests
-- **Stack Overflow**: Tag questions with `agent-mesh`
+We use labels to categorize issues:
 
-### Recognition
+- 🐛 **bug**: Something isn't working
+- ✨ **enhancement**: New feature or request
+- 📝 **documentation**: Documentation improvements
+- 🚀 **performance**: Performance improvements
+- 🔒 **security**: Security-related issues
+- 🧪 **testing**: Testing improvements
+- 🎨 **refactoring**: Code structure improvements
+
+### Issue Lifecycle
+
+1. **Triage**: Team reviews and labels new issues
+2. **Assignment**: Issues assigned to contributors
+3. **Development**: Work begins on the issue
+4. **Review**: Pull request reviewed and merged
+5. **Testing**: Changes tested in development
+6. **Release**: Changes included in next release
+
+### Good First Issues
+
+New to the project? Look for issues labeled:
+- `good first issue`: Perfect for newcomers
+- `help wanted`: Community help needed
+- `documentation`: Usually easier to start with
+
+## 🌟 Recognition
 
 We value all contributions and recognize them through:
 
-- **Contributors file**: All contributors listed in CONTRIBUTORS.md
-- **Release notes**: Significant contributions highlighted
-- **Community spotlight**: Monthly contributor recognition
-- **Conference talks**: Opportunities to present your contributions
+- **Contributors Page**: Listed on our website
+- **Release Notes**: Mentioned in release announcements
+- **Annual Report**: Highlighted in yearly summaries
+- **Special Recognition**: For significant contributions
 
-### Maintainer Responsibilities
+## 🎓 Learning Resources
 
-Current maintainers commit to:
+### Project-Specific Resources
+- [Architecture Documentation](docs/ARCHITECTURE.md)
+- [API Documentation](docs/api/)
+- [Development Guide](docs/DEVELOPMENT.md)
+- [Security Guidelines](docs/security/)
 
-- **Timely responses**: 48-hour response time for issues and PRs
-- **Code review**: Thorough review of all contributions
-- **Community support**: Help new contributors get started
-- **Documentation**: Keep project documentation current
-- **Security**: Prompt response to security issues
+### General Learning
+- [Federated Learning Overview](https://federated.withgoogle.com/)
+- [P2P Networking Concepts](https://docs.libp2p.io/concepts/)
+- [Byzantine Fault Tolerance](https://pmg.csail.mit.edu/papers/osdi99.pdf)
+- [Differential Privacy](https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf)
+
+## 💬 Community
+
+### Communication Channels
+
+- **GitHub Issues**: Bug reports and feature requests
+- **GitHub Discussions**: General questions and ideas
+- **Discord**: Real-time chat with the community
+- **Email**: `community@terragon.ai` for private matters
+
+### Community Events
+
+- **Monthly Meetups**: Virtual community gatherings
+- **Hackathons**: Quarterly coding events
+- **Conferences**: Speaking at relevant conferences
+- **Workshops**: Educational sessions for contributors
+
+### Mentorship Program
+
+We offer mentorship for new contributors:
+- **Pair Programming**: Work directly with maintainers
+- **Code Reviews**: Learning-focused review sessions
+- **Project Guidance**: Help choosing suitable issues
+- **Career Development**: Advice on open source careers
+
+## 🏆 Contributor Levels
+
+As you contribute more, you can advance through levels:
+
+### 🌱 Contributor
+- Submitted at least one merged PR
+- Familiar with project basics
+- Follows contribution guidelines
+
+### 🌟 Regular Contributor
+- Multiple significant contributions
+- Helps with code reviews
+- Mentors new contributors
+
+### 🚀 Core Contributor
+- Deep project knowledge
+- Leads feature development
+- Helps with project direction
+
+### 👑 Maintainer
+- Commit access to repository
+- Releases management
+- Community leadership
+
+## 📞 Getting Help
+
+Stuck? Need help? Reach out:
+
+1. **Documentation**: Check our comprehensive docs
+2. **GitHub Discussions**: Ask the community
+3. **Discord**: Real-time help from contributors
+4. **Office Hours**: Weekly Q&A sessions with maintainers
+
+## 🙏 Thank You
+
+Your contributions make this project better for everyone. Whether you're fixing a typo, adding a feature, or helping others, you're part of building something amazing.
+
+**Happy Contributing!** 🚀
 
 ---
 
-## Questions?
-
-If you have questions about contributing, please:
-
-1. Check existing documentation and issues
-2. Ask in our Discord community
-3. Open a GitHub Discussion
-4. Contact maintainers directly for sensitive issues
-
-Thank you for contributing to the Agent Mesh Federated Runtime! 🚀
+*This contributing guide is a living document. We welcome suggestions for improvements!*
