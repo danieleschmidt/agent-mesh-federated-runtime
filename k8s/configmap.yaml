@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-mesh-config
+  namespace: agent-mesh
+  labels:
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/component: configuration
+data:
+  config.yaml: |
+    mesh:
+      network:
+        listen_addr: "0.0.0.0:4001"
+        protocol: "libp2p"
+        discovery:
+          mdns:
+            enabled: true
+            service_name: "_agent-mesh._tcp"
+          dht:
+            enabled: true
+            bootstrap_peers: []
+      consensus:
+        algorithm: "raft"
+        fault_tolerance: 0.33
+        timeout_ms: 5000
+      security:
+        tls_enabled: true
+        identity_verification: true
+        secure_channels: true
+    federated:
+      rounds: 100
+      local_epochs: 5
+      batch_size: 32
+      learning_rate: 0.01
+      min_nodes_per_round: 3
+      aggregation_strategy: "fedavg"
+      differential_privacy:
+        enabled: true
+        epsilon: 1.0
+        delta: 1e-5
+    monitoring:
+      prometheus:
+        enabled: true
+        port: 9090
+        path: "/metrics"
+      logging:
+        level: "INFO"
+        format: "json"
+    api:
+      host: "0.0.0.0"
+      port: 8000
+      cors_enabled: true
+      docs_enabled: true

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base",
+    "security:openssf-scorecard",
+    ":dependencyDashboard",
+    ":semanticCommits"
+  ],
+  "schedule": ["before 6am on Monday"],
+  "prConcurrentLimit": 5,
+  "assignees": ["danieleschmidt"],
+  "reviewers": ["danieleschmidt"],
+  "labels": ["dependencies", "renovate"],
+  "packageRules": [
+    {
+      "matchDatasources": ["pypi"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "matchPackagePatterns": ["^pytest", "^coverage", "^black"],
+      "groupName": "test and dev tools"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["at any time"]
+  },
+  "platformAutomerge": true
+}

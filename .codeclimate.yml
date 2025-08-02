@@ -1,0 +1,121 @@
+# CodeClimate configuration for Agent Mesh Federated Runtime
+# See https://docs.codeclimate.com/docs/advanced-configuration
+
+version: "2"
+
+# Analyzers to run
+checks:
+  # Python specific checks
+  argument-count:
+    config:
+      threshold: 6
+  complex-logic:
+    config:
+      threshold: 8
+  file-lines:
+    config:
+      threshold: 500
+  method-complexity:
+    config:
+      threshold: 10
+  method-count:
+    config:
+      threshold: 25
+  method-lines:
+    config:
+      threshold: 50
+  nested-control-flow:
+    config:
+      threshold: 4
+  return-statements:
+    config:
+      threshold: 4
+  similar-code:
+    config:
+      threshold: 150
+  
+# Plugins configuration
+plugins:
+  # Python linting and style
+  pep8:
+    enabled: true
+    config:
+      max-line-length: 88
+  
+  pylint:
+    enabled: true
+    config:
+      disable:
+        - too-many-arguments
+        - too-few-public-methods
+        - import-error
+  
+  # Security scanning
+  bandit:
+    enabled: true
+    config:
+      skips:
+        - B101  # assert_used
+        - B601  # paramiko_calls
+  
+  # Duplicate code detection
+  duplication:
+    enabled: true
+    config:
+      languages:
+        python:
+          mass_threshold: 50
+          minimum_tokens: 100
+  
+  # Git metrics
+  git-legal:
+    enabled: true
+  
+  # File size and structure
+  structure:
+    enabled: true
+  
+  # Documentation
+  markdownlint:
+    enabled: true
+    config:
+      MD013:
+        line_length: 120
+      MD033: false  # Allow inline HTML
+      MD041: false  # First line not h1
+
+# File exclusions
+exclude_patterns:
+  - "**/*_pb2.py"
+  - "**/*_pb2_grpc.py"
+  - "**/migrations/"
+  - "**/node_modules/"
+  - "**/venv/"
+  - "**/.venv/"
+  - "**/dist/"
+  - "**/build/"
+  - "**/__pycache__/"
+  - "**/htmlcov/"
+  - "**/.pytest_cache/"
+  - "**/.mypy_cache/"
+  - "**/.tox/"
+  - "**/conftest.py"
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "scripts/setup.py"
+  - "proto/"
+
+# Prepare commands to run before analysis
+prepare:
+  fetch:
+    - url: "https://raw.githubusercontent.com/PyCQA/bandit/main/bandit/blacklists/calls.json"
+      path: ".codeclimate/bandit-calls.json"
+
+# Test coverage configuration
+coverage:
+  precision: 2
+  round: nearest
+  range: 80..95
+  
+# Git blame ignore file
+git_blame_ignore_file: .git-blame-ignore-revs
