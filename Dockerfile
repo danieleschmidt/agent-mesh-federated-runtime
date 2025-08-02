@@ -3,7 +3,7 @@
 # =============================================================================
 # Base stage - Common dependencies
 # =============================================================================
-FROM python:3.11-slim as base
+FROM python:3.13-slim as base
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -104,7 +104,7 @@ RUN python -m build
 # =============================================================================
 # Production stage - Minimal production image
 # =============================================================================
-FROM python:3.11-slim as production
+FROM python:3.13-slim as production
 
 # Set production environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -185,7 +185,7 @@ CMD ["agent-mesh", "--config", "/app/configs/production.yaml"]
 # =============================================================================
 # Edge stage - Optimized for edge devices
 # =============================================================================
-FROM python:3.11-alpine as edge
+FROM python:3.13-alpine as edge
 
 # Set edge environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -270,7 +270,7 @@ CMD ["sh", "-c", "node_exporter --web.listen-address=:9100 & agent-mesh --enable
 # =============================================================================
 # GPU stage - With CUDA support for ML acceleration
 # =============================================================================
-FROM nvidia/cuda:11.8-runtime-ubuntu20.04 as gpu
+FROM nvidia/cuda:12.9.1-runtime-ubuntu20.04 as gpu
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

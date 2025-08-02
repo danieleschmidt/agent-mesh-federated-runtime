@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agent-mesh
+  labels:
+    name: agent-mesh
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/instance: production
+    app.kubernetes.io/component: namespace
+    app.kubernetes.io/managed-by: kubectl

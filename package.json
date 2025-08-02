@@ -5,7 +5,7 @@
   "main": "src/web/dashboard/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/agent-mesh-federated-runtime.git"
+    "url": "https://github.com/danieleschmidt/agent-mesh-federated-runtime.git"
   },
   "keywords": [
     "federated-learning",
@@ -20,9 +20,9 @@
   "author": "Daniel Schmidt <daniel@terragon.ai>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/your-org/agent-mesh-federated-runtime/issues"
+    "url": "https://github.com/danieleschmidt/agent-mesh-federated-runtime/issues"
   },
-  "homepage": "https://github.com/your-org/agent-mesh-federated-runtime#readme",
+  "homepage": "https://github.com/danieleschmidt/agent-mesh-federated-runtime#readme",
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
@@ -48,6 +48,8 @@
     "security": "npm run security:python && npm run security:js",
     "security:python": "bandit -r src/ && safety check",
     "security:js": "cd src/web/dashboard && npm audit",
+    "validate:sdlc": "python3 scripts/validate-checkpoint-implementation.py",
+    "validate:all": "npm run lint && npm run security && npm run validate:sdlc && npm test",
     "docs": "npm run docs:build && npm run docs:serve",
     "docs:build": "sphinx-build -b html docs/ docs/_build/html/",
     "docs:serve": "python -m http.server 8080 --directory docs/_build/html/",
@@ -79,10 +81,10 @@
     "release:dry": "semantic-release publish --dry-run"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
+    "concurrently": "^9.2.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "semantic-release": "^21.1.1"
+    "semantic-release": "^24.2.7"
   },
   "dependencies": {
     "ws": "^8.14.2"
@@ -114,6 +116,6 @@
   },
   "funding": {
     "type": "github",
-    "url": "https://github.com/sponsors/your-org"
+    "url": "https://github.com/sponsors/danieleschmidt"
   }
 }

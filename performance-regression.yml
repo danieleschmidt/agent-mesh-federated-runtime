@@ -1,0 +1,387 @@
+# Performance Regression Detection Configuration
+# Automated performance monitoring and regression detection for Agent Mesh
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: performance-regression-config
+  namespace: agent-mesh
+data:
+  benchmark-suite.yaml: |
+    # Core performance benchmarks
+    benchmarks:
+      network_performance:
+        - name: "p2p_connection_latency"
+          description: "Measure peer-to-peer connection establishment time"
+          baseline_ms: 150
+          threshold_degradation: 20  # 20% regression threshold
+          test_duration: 60s
+          concurrent_connections: 100
+          
+        - name: "message_throughput"
+          description: "Messages per second through mesh network"
+          baseline_mps: 1000
+          threshold_degradation: 15
+          test_duration: 120s
+          message_size_kb: 64
+          
+        - name: "gossip_propagation"
+          description: "Time for message to propagate to 95% of nodes"
+          baseline_ms: 500
+          threshold_degradation: 25
+          network_size: 50
+          message_count: 100
+
+      consensus_performance:
+        - name: "consensus_round_time"
+          description: "Time to achieve consensus in Byzantine environment"
+          baseline_ms: 2000
+          threshold_degradation: 30
+          byzantine_node_percentage: 20
+          network_size: 21
+          
+        - name: "finality_time"
+          description: "Time from proposal to finalization"
+          baseline_ms: 5000
+          threshold_degradation: 20
+          proposal_size_kb: 256
+          validator_count: 15
+
+      federated_learning:
+        - name: "training_round_completion"
+          description: "Time to complete one federated learning round"
+          baseline_s: 30
+          threshold_degradation: 25
+          participants: 10
+          model_size_mb: 100
+          dataset_size: 10000
+          
+        - name: "model_aggregation_time"
+          description: "Time to aggregate model updates"
+          baseline_ms: 3000
+          threshold_degradation: 20
+          update_count: 20
+          model_parameters: 1000000
+          
+        - name: "convergence_speed"
+          description: "Rounds to reach target accuracy"
+          baseline_rounds: 50
+          threshold_degradation: 40
+          target_accuracy: 0.85
+          learning_rate: 0.01
+
+      resource_utilization:
+        - name: "memory_efficiency"
+          description: "Memory usage during peak operation"
+          baseline_mb: 512
+          threshold_degradation: 30
+          operation: "full_training_round"
+          
+        - name: "cpu_utilization"
+          description: "CPU usage during consensus participation"
+          baseline_percent: 65
+          threshold_degradation: 20
+          operation: "byzantine_consensus"
+          
+        - name: "network_bandwidth"
+          description: "Network bandwidth utilization"
+          baseline_mbps: 50
+          threshold_degradation: 25
+          operation: "gossip_protocol"
+
+      scalability_tests:
+        - name: "node_join_time"
+          description: "Time for new node to join and sync"
+          baseline_s: 45
+          threshold_degradation: 35
+          network_size: 100
+          sync_data_gb: 1
+          
+        - name: "load_capacity"
+          description: "Maximum sustainable transaction rate"
+          baseline_tps: 500
+          threshold_degradation: 15
+          test_duration: 300s
+          ramp_up_time: 60s
+
+  monitoring-configuration.yaml: |
+    # Performance monitoring setup
+    monitoring:
+      collection_interval: 10s
+      retention_period: 30d
+      
+      metrics:
+        # System metrics
+        system:
+          - cpu_usage_percent
+          - memory_usage_bytes
+          - disk_io_operations
+          - network_bytes_sent
+          - network_bytes_received
+          
+        # Application metrics
+        application:
+          - mesh_node_count
+          - active_connections
+          - message_queue_size
+          - consensus_participation_rate
+          - training_round_progress
+          
+        # Custom metrics
+        performance:
+          - p2p_latency_histogram
+          - consensus_time_histogram
+          - aggregation_duration_histogram
+          - throughput_gauge
+          - error_rate_counter
+
+      alerting:
+        performance_degradation:
+          condition: "performance_regression > baseline * (1 + threshold)"
+          severity: warning
+          channels: [slack, email]
+          
+        critical_performance:
+          condition: "performance_regression > baseline * 1.5" 
+          severity: critical
+          channels: [pagerduty, slack, email]
+          
+        capacity_limits:
+          condition: "resource_utilization > 90"
+          severity: warning
+          channels: [slack]
+
+  regression-detection.yaml: |
+    # Regression detection algorithms
+    detection:
+      statistical_methods:
+        - name: "z_score"
+          description: "Detect outliers using Z-score analysis"
+          window_size: 50
+          threshold: 2.5
+          
+        - name: "exponential_smoothing"
+          description: "Exponential weighted moving average"
+          alpha: 0.3
+          threshold_multiplier: 1.5
+          
+        - name: "seasonal_decomposition"
+          description: "Account for cyclical performance patterns"
+          season_length: 24h
+          trend_component_weight: 0.7
+
+      machine_learning:
+        - name: "isolation_forest"
+          description: "Anomaly detection using isolation forest"
+          contamination: 0.1
+          n_estimators: 100
+          
+        - name: "lstm_prediction"
+          description: "LSTM-based performance prediction"
+          lookback_window: 100
+          prediction_horizon: 10
+          retrain_interval: 7d
+
+      change_point_detection:
+        - name: "cusum"
+          description: "Cumulative sum control chart"
+          reference_value: baseline
+          decision_interval: 5
+          
+        - name: "bayesian_change_point"
+          description: "Bayesian online change point detection"
+          prior_probability: 0.01
+          threshold: 0.8
+
+  automated-response.yaml: |
+    # Automated responses to performance regressions
+    response_actions:
+      investigation:
+        - name: "collect_diagnostics"
+          trigger: "performance_regression_detected"
+          actions:
+            - capture_system_snapshot
+            - collect_application_logs
+            - generate_profiling_data
+            - create_network_topology_dump
+            
+        - name: "run_micro_benchmarks"
+          trigger: "regression_confirmed"
+          actions:
+            - execute_component_benchmarks
+            - compare_with_baseline
+            - identify_bottleneck_components
+            
+      mitigation:
+        - name: "auto_scaling"
+          trigger: "resource_constraint_detected"
+          actions:
+            - scale_up_resources
+            - redistribute_workload
+            - enable_performance_mode
+            
+        - name: "traffic_shaping"
+          trigger: "network_performance_degradation"
+          actions:
+            - adjust_message_batching
+            - modify_gossip_fanout
+            - enable_compression
+            
+        - name: "graceful_degradation"
+          trigger: "critical_performance_loss"
+          actions:
+            - disable_non_essential_features
+            - reduce_consensus_complexity
+            - switch_to_emergency_mode
+
+      notification:
+        - name: "developer_notification"
+          trigger: "regression_detected"
+          channels: [slack, email]
+          include_data: [metrics, diagnostics, suggested_actions]
+          
+        - name: "stakeholder_alert"
+          trigger: "critical_regression"
+          channels: [pagerduty, phone]
+          escalation_path: [team_lead, engineering_manager, cto]
+
+  reporting-dashboard.yaml: |
+    # Performance reporting and dashboard configuration
+    dashboards:
+      real_time_performance:
+        refresh_interval: 30s
+        panels:
+          - title: "Latency Percentiles"
+            type: "time_series"
+            metrics: [p50_latency, p95_latency, p99_latency]
+            
+          - title: "Throughput Trends"
+            type: "stat"
+            metrics: [messages_per_second, transactions_per_second]
+            
+          - title: "Resource Utilization"
+            type: "gauge"
+            metrics: [cpu_usage, memory_usage, disk_usage]
+            
+          - title: "Error Rates"
+            type: "stat"
+            metrics: [error_rate, timeout_rate, retry_rate]
+
+      performance_trends:
+        refresh_interval: 5m
+        time_range: 24h
+        panels:
+          - title: "Performance Regression Detection"
+            type: "time_series"
+            metrics: [performance_score, regression_alerts]
+            annotations: [deployments, configuration_changes]
+            
+          - title: "Baseline Comparison"
+            type: "table"
+            columns: [metric, current, baseline, change_percent, status]
+            
+          - title: "Capacity Planning"
+            type: "time_series"
+            metrics: [resource_trends, predicted_capacity]
+
+      weekly_summary:
+        generation: automated
+        schedule: "0 9 * * MON"
+        recipients: [engineering_team, stakeholders]
+        content:
+          - performance_summary
+          - regression_incidents
+          - capacity_recommendations
+          - optimization_opportunities
+
+---
+# Performance testing automation
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: performance-automation
+  namespace: agent-mesh
+data:
+  test-execution.yaml: |
+    # Automated performance test execution
+    execution:
+      triggers:
+        - event: "pull_request"
+          tests: [smoke_performance, regression_detection]
+          
+        - event: "merge_to_main"
+          tests: [full_performance_suite, baseline_update]
+          
+        - event: "release_candidate"
+          tests: [comprehensive_benchmark, load_testing]
+          
+        - event: "scheduled_daily"
+          time: "02:00 UTC"
+          tests: [nightly_performance, trend_analysis]
+          
+        - event: "scheduled_weekly"
+          time: "06:00 UTC Sunday"
+          tests: [full_regression_suite, capacity_analysis]
+
+      environments:
+        - name: "ci_environment"
+          resources: 
+            cpu: 4
+            memory: 8Gi
+            nodes: 5
+          duration: 30m
+          
+        - name: "staging_environment"
+          resources:
+            cpu: 8  
+            memory: 16Gi
+            nodes: 20
+          duration: 2h
+          
+        - name: "production_simulation"
+          resources:
+            cpu: 16
+            memory: 32Gi
+            nodes: 100
+          duration: 4h
+
+  data-analysis.yaml: |
+    # Performance data analysis pipeline
+    analysis:
+      data_processing:
+        - name: "metric_aggregation"
+          interval: 1m
+          functions: [avg, p50, p95, p99, max, min]
+          
+        - name: "trend_analysis"
+          window: 7d
+          algorithms: [linear_regression, seasonal_decomposition]
+          
+        - name: "anomaly_detection"
+          methods: [statistical, ml_based, rule_based]
+          sensitivity: medium
+
+      reporting:
+        - name: "regression_report"
+          format: json
+          include: [test_results, baselines, regressions, recommendations]
+          
+        - name: "trend_report"
+          format: html
+          include: [charts, analysis, predictions, alerts]
+          
+        - name: "capacity_report"
+          format: pdf
+          include: [current_usage, projections, recommendations]
+
+      storage:
+        retention_policy:
+          raw_metrics: 30d
+          aggregated_data: 1y
+          reports: 2y
+          baselines: permanent
+          
+        backup_strategy:
+          frequency: daily
+          retention: 90d
+          location: s3://performance-data-backup
