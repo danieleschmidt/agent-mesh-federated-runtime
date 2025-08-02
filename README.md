@@ -1,9 +1,12 @@
-# agent-mesh-federated-runtime
+# Agent Mesh Federated Runtime
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/your-org/agent-mesh-federated-runtime/ci.yml?branch=main)](https://github.com/your-org/agent-mesh-federated-runtime/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/danieleschmidt/agent-mesh-federated-runtime/ci.yml?branch=main)](https://github.com/danieleschmidt/agent-mesh-federated-runtime/actions)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Network](https://img.shields.io/badge/protocol-libp2p%20|%20gRPC-blue)](https://github.com/your-org/agent-mesh-federated-runtime)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Network](https://img.shields.io/badge/protocol-libp2p%20|%20gRPC-blue)](https://github.com/danieleschmidt/agent-mesh-federated-runtime)
+[![Terragon SDLC](https://img.shields.io/badge/SDLC-Terragon%20Optimized-green.svg)](docs/INTEGRATION_GUIDE.md)
+[![Security](https://img.shields.io/badge/security-comprehensive-brightgreen.svg)](docs/security/)
+[![Quality Gate](https://img.shields.io/badge/quality%20gate-85%25%20coverage-brightgreen.svg)](https://sonarcloud.io/project/overview?id=agent-mesh-federated-runtime)
 
 Decentralized peer-to-peer runtime for federated learning and multi-agent systems. No single point of failure, automatic role negotiation, and Byzantine fault tolerance. Scale from 2 to 10,000+ agents seamlessly.
 
@@ -20,6 +23,7 @@ Decentralized peer-to-peer runtime for federated learning and multi-agent system
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Terragon SDLC](#terragon-sdlc)
 - [Architecture](#architecture)
 - [Federated Learning](#federated-learning)
 - [Agent Coordination](#agent-coordination)
@@ -89,6 +93,154 @@ peer_node = MeshNode(
 await peer_node.start()
 # Automatically discovers task and participates
 ```
+
+## 🏗️ Terragon SDLC
+
+This project implements a **Terragon-optimized Software Development Lifecycle (SDLC)** with enterprise-grade automation, security, and quality gates.
+
+### 🎯 SDLC Features
+
+- **🔄 Fully Automated CI/CD**: From commit to production deployment
+- **🛡️ Security-First**: Multi-layer scanning (SAST, DAST, dependency, container)
+- **📊 Quality Gates**: 85% test coverage, automated code quality checks
+- **🔍 Monitoring**: Comprehensive observability with Prometheus + Grafana
+- **🤖 Automation**: Dependency updates, issue triage, performance regression detection
+- **📚 Documentation**: Auto-generated API docs, integration guides, runbooks
+
+### 🚀 Quick SDLC Health Check
+
+```bash
+# Validate entire SDLC integration
+python scripts/integration-health-check.py
+
+# Run specific component checks
+python scripts/integration-health-check.py --component security
+python scripts/integration-health-check.py --component performance
+
+# Generate comprehensive report
+python scripts/integration-health-check.py --output health-report.json
+```
+
+### 📈 SDLC Metrics
+
+The project tracks comprehensive metrics across all SDLC phases:
+
+```bash
+# Collect and analyze project metrics
+python scripts/metrics-collector.py
+
+# View metrics dashboard
+docker-compose up grafana
+# Open http://localhost:3000
+```
+
+**Key Metrics Tracked:**
+- **Code Quality**: Test coverage, code duplication, maintainability
+- **Security**: Vulnerability count, security debt, compliance status
+- **Performance**: Build times, test execution, deployment duration
+- **Reliability**: Uptime, error rates, incident response times
+
+### 🔧 Development Workflow
+
+```bash
+# 1. Set up development environment
+git clone https://github.com/danieleschmidt/agent-mesh-federated-runtime
+cd agent-mesh-federated-runtime
+docker-compose up -d  # Starts development stack
+
+# 2. Install development dependencies
+pip install -e ".[dev]"
+pre-commit install   # Install quality gates
+
+# 3. Development cycle
+git checkout -b feature/my-feature
+# Make changes...
+git commit -m "feat: add new consensus algorithm"
+# Pre-commit hooks run automatically:
+# ✅ Code formatting (Black)
+# ✅ Linting (Flake8, MyPy)
+# ✅ Security scanning (Bandit)
+# ✅ Quick tests (Unit tests)
+
+# 4. Push and create PR
+git push origin feature/my-feature
+# GitHub Actions runs comprehensive checks:
+# ✅ Full test suite (Unit, Integration, E2E)
+# ✅ Security scanning (Snyk, Safety)
+# ✅ Container security (Trivy)
+# ✅ Performance regression tests
+# ✅ Documentation updates
+
+# 5. Automated deployment (on merge to main)
+# ✅ Staging deployment (automatic)
+# ✅ Production deployment (approved)
+```
+
+### 📊 Quality Gates
+
+| Gate | Requirement | Tool | Blocking |
+|------|-------------|------|----------|
+| **Code Format** | Black compliant | `black --check` | ✅ |
+| **Code Quality** | Flake8 clean | `flake8 src/` | ✅ |
+| **Type Safety** | MyPy strict | `mypy src/` | ✅ |
+| **Security** | No high/critical | `bandit -r src/` | ✅ |
+| **Test Coverage** | ≥85% coverage | `pytest --cov=85` | ✅ |
+| **Dependencies** | No vulnerabilities | `safety check` | ✅ |
+| **Container** | Secure base image | `trivy image` | ✅ |
+| **Performance** | <10% regression | Custom benchmarks | ⚠️ |
+
+### 🔒 Security Integration
+
+**Multi-Layer Security Scanning:**
+
+```yaml
+# Security tools integrated in pipeline
+security:
+  sast: [bandit, semgrep, sonarcloud]
+  dependency: [safety, snyk, npm-audit]
+  container: [trivy, snyk-container]
+  secrets: [detect-secrets, trufflesecurity]
+  infrastructure: [checkov, tfsec]
+```
+
+**Automated Security Updates:**
+- **Daily** vulnerability scanning
+- **Weekly** dependency updates  
+- **Immediate** critical security patches
+- **Automated** PR creation for security fixes
+
+### 📚 SDLC Documentation
+
+- **[Integration Guide](docs/INTEGRATION_GUIDE.md)**: Complete SDLC integration documentation
+- **[Workflow Setup](docs/workflows/WORKFLOW_SETUP_GUIDE.md)**: GitHub Actions setup and configuration
+- **[Security Policy](docs/security/)**: Security guidelines and procedures
+- **[Architecture Docs](docs/architecture/)**: Technical architecture and design decisions
+
+### 🤖 Automation Features
+
+```bash
+# Repository automation (runs daily)
+python scripts/repository-automation.py
+
+# What gets automated:
+# ✅ Dependency updates and security patches
+# ✅ Code quality analysis and suggestions
+# ✅ Documentation updates and link checking
+# ✅ Issue triage and auto-labeling
+# ✅ Performance monitoring and alerts
+# ✅ Cleanup of build artifacts and logs
+```
+
+### 📈 Continuous Improvement
+
+The SDLC includes feedback loops for continuous improvement:
+
+- **Weekly** metrics review and trend analysis
+- **Monthly** security posture assessment
+- **Quarterly** process optimization based on metrics
+- **Automated** suggestions for performance improvements
+
+For detailed SDLC configuration, see **[.terragon/sdlc-config.yaml](.terragon/sdlc-config.yaml)**
 
 ### Multi-Agent Coordination
 
