@@ -214,6 +214,48 @@ repos:
         pass_filenames: false
         stages: [push]
 
+      # SDLC Configuration validation
+      - id: sdlc-config-validation
+        name: sdlc-config-validation
+        entry: scripts/validate-sdlc-config.py
+        language: python
+        files: ^\.terragon/.*\.(yaml|yml)$
+        pass_filenames: true
+
+      # Integration testing
+      - id: integration-test-quick
+        name: integration-test-quick
+        entry: pytest
+        language: system
+        pass_filenames: false
+        args: [tests/integration/test_smoke.py, -v, --tb=short]
+        stages: [push]
+
+      # Performance regression check
+      - id: performance-regression-check
+        name: performance-regression-check
+        entry: scripts/performance-regression.py
+        language: python
+        pass_filenames: false
+        files: ^src/.*\.py$
+        stages: [push]
+
+      # Container build validation
+      - id: docker-build-check
+        name: docker-build-check
+        entry: scripts/validate-docker-build.sh
+        language: script
+        pass_filenames: false
+        files: ^(Dockerfile|docker-compose.*\.yml|\.dockerignore)$
+
+      # Helm chart validation
+      - id: helm-chart-validation
+        name: helm-chart-validation
+        entry: scripts/validate-helm-charts.sh
+        language: script
+        pass_filenames: false
+        files: ^helm/.*\.(yaml|yml|tpl)$
+
 # Global configuration
 default_language_version:
   python: python3.9
