@@ -1,144 +1,153 @@
 {
-  "name": "Agent Mesh Federated Runtime",
-  "image": "mcr.microsoft.com/devcontainers/python:3.11-bullseye",
+  "name": "Agent Mesh Development Environment",
+  "dockerFile": "Dockerfile",
   
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "18"
+  "forwardPorts": [
+    4001,
+    5001,
+    8080,
+    9090,
+    3000
+  ],
+  
+  "portsAttributes": {
+    "4001": {
+      "label": "P2P libp2p",
+      "onAutoForward": "notify"
     },
-    "ghcr.io/devcontainers/features/rust:1": {},
-    "ghcr.io/devcontainers/features/go:1": {
-      "version": "1.21"
+    "5001": {
+      "label": "gRPC API",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "HTTP API",
+      "onAutoForward": "openPreview"
+    },
+    "9090": {
+      "label": "Prometheus Metrics",
+      "onAutoForward": "ignore"
+    },
+    "3000": {
+      "label": "Grafana Dashboard",
+      "onAutoForward": "openPreview"
     }
   },
-
+  
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-python.python",
         "ms-python.black-formatter",
-        "ms-python.isort",
         "ms-python.flake8",
         "ms-python.mypy-type-checker",
-        "ms-python.pytest",
-        "ms-vscode.vscode-typescript-next",
-        "ms-vscode.vscode-eslint",
-        "bradlc.vscode-tailwindcss",
-        "ms-vscode.vscode-docker",
-        "ms-kubernetes-tools.vscode-kubernetes-tools",
-        "hashicorp.terraform",
-        "redhat.vscode-yaml",
-        "ms-vscode.vscode-json",
-        "golang.go",
-        "rust-lang.rust-analyzer",
-        "github.copilot",
-        "github.copilot-chat",
-        "esbenp.prettier-vscode",
-        "streetsidesoftware.code-spell-checker",
-        "ms-vscode.test-adapter-converter",
-        "littlefoxteam.vscode-python-test-adapter",
         "ms-toolsai.jupyter",
-        "ms-vscode.makefile-tools",
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "ms-azuretools.vscode-docker",
         "github.vscode-pull-request-github",
-        "mhutchie.git-graph",
         "eamodio.gitlens",
-        "bierner.markdown-mermaid",
-        "yzhang.markdown-all-in-one",
-        "davidanson.vscode-markdownlint",
-        "shd101wyy.markdown-preview-enhanced",
-        "formulahendry.auto-rename-tag",
-        "christian-kohler.path-intellisense",
-        "visualstudioexptteam.vscodeintellicode",
-        "ms-vscode.vscode-github-actions"
+        "ms-python.pylint",
+        "charliermarsh.ruff",
+        "tamasfe.even-better-toml",
+        "ms-python.isort"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
-        "python.formatting.provider": "black",
-        "python.formatting.blackArgs": ["--line-length=88"],
-        "python.sortImports.args": ["--profile", "black"],
         "python.linting.enabled": true,
         "python.linting.pylintEnabled": false,
         "python.linting.flake8Enabled": true,
         "python.linting.mypyEnabled": true,
+        "python.linting.banditEnabled": true,
+        "python.formatting.provider": "black",
+        "python.formatting.blackArgs": ["--line-length=88"],
+        "python.sortImports.args": ["--profile", "black"],
         "python.testing.pytestEnabled": true,
         "python.testing.unittestEnabled": false,
-        "python.testing.nosetestsEnabled": false,
+        "python.testing.pytestArgs": [
+          "tests"
+        ],
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
           "source.organizeImports": true
         },
         "files.exclude": {
           "**/__pycache__": true,
-          "**/.pytest_cache": true,
           "**/*.pyc": true,
+          "**/venv": true,
+          "**/.pytest_cache": true,
           "**/node_modules": true,
-          "**/.coverage": true,
           "**/.mypy_cache": true,
           "**/dist": true,
-          "**/build": true,
-          "**/*.egg-info": true
+          "**/build": true
         },
-        "files.trimTrailingWhitespace": true,
-        "files.insertFinalNewline": true,
+        "python.analysis.typeCheckingMode": "basic",
+        "python.analysis.autoImportCompletions": true,
+        "python.analysis.completeFunctionParens": true,
         "terminal.integrated.defaultProfile.linux": "bash",
-        "git.enableCommitSigning": false,
-        "docker.enableDockerComposeLanguageService": true,
-        "typescript.preferences.importModuleSpecifier": "relative",
-        "eslint.workingDirectories": ["src/web/dashboard"],
-        "prettier.configPath": "src/web/dashboard/.prettierrc",
-        "markdownlint.config": {
-          "MD013": { "line_length": 100 },
-          "MD033": false
+        "git.enableSmartCommit": true,
+        "git.confirmSync": false,
+        "explorer.confirmDelete": false,
+        "files.associations": {
+          "*.yml": "yaml",
+          "*.yaml": "yaml",
+          "Dockerfile*": "dockerfile",
+          "docker-compose*.yml": "yaml"
         }
       }
     }
   },
-
-  "forwardPorts": [
-    3000,
-    4001,
-    5001,
-    8000,
-    8080,
-    9090
-  ],
-
-  "portsAttributes": {
-    "3000": {
-      "label": "Dashboard",
-      "onAutoForward": "notify"
-    },
-    "4001": {
-      "label": "P2P libp2p",
-      "onAutoForward": "silent"
-    },
-    "5001": {
-      "label": "gRPC API",
-      "onAutoForward": "silent"
-    },
-    "8000": {
-      "label": "Development Server",
-      "onAutoForward": "notify"
-    },
-    "9090": {
-      "label": "Prometheus Metrics",
-      "onAutoForward": "silent"
-    }
+  
+  "remoteEnv": {
+    "PYTHONPATH": "/workspaces/agent-mesh-federated-runtime/src",
+    "ENVIRONMENT": "development",
+    "DEBUG": "true",
+    "LOG_LEVEL": "DEBUG"
   },
-
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  
+  "postCreateCommand": "pip install -e '.[dev]' && pre-commit install",
   
   "remoteUser": "vscode",
   
   "mounts": [
-    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+    "source=${localWorkspaceFolder}/.vscode,target=/workspaces/agent-mesh-federated-runtime/.vscode,type=bind",
+    "source=agent-mesh-data,target=/data,type=volume"
   ],
-
+  
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "installOhMyZsh": true,
+      "upgradePackages": true,
+      "username": "vscode",
+      "userUid": "1000",
+      "userGid": "1000"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "enableNonRootDocker": "true",
+      "moby": "true"
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "latest",
+      "ppa": "false"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    }
+  },
+  
   "containerEnv": {
-    "PYTHONPATH": "/workspaces/agent-mesh-federated-runtime",
-    "ENVIRONMENT": "development",
-    "LOG_LEVEL": "DEBUG"
+    "TZ": "UTC",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8"
+  },
+  
+  "lifecycleScripts": {
+    "postStart": [
+      "echo 'Starting Agent Mesh development environment...'",
+      "python --version",
+      "pip list | grep -E '(torch|numpy|pytest)'",
+      "echo 'Development environment ready! 🚀'"
+    ]
   }
 }

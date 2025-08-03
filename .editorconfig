@@ -1,89 +1,57 @@
-# EditorConfig is awesome: https://EditorConfig.org
+# EditorConfig helps maintain consistent coding styles
+# across different editors and IDEs
+# https://editorconfig.org
 
-# Top-most EditorConfig file
 root = true
 
-# All files
 [*]
 charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 indent_style = space
-indent_size = 2
+indent_size = 4
 
-# Python files
-[*.py]
+[*.{py,pyi}]
 indent_size = 4
 max_line_length = 88
 
-# YAML files
-[*.{yml,yaml}]
-indent_size = 2
-
-# JSON files
-[*.json]
-indent_size = 2
-
-# JavaScript and TypeScript
 [*.{js,ts,jsx,tsx}]
 indent_size = 2
 
-# HTML
-[*.html]
+[*.{json,yml,yaml}]
 indent_size = 2
 
-# CSS and SCSS
-[*.{css,scss}]
-indent_size = 2
-
-# Markdown
 [*.md]
 trim_trailing_whitespace = false
-max_line_length = 80
+max_line_length = off
 
-# Makefile
+[*.{toml,cfg,ini}]
+indent_size = 4
+
 [Makefile]
 indent_style = tab
 
-# Dockerfile
-[Dockerfile*]
-indent_size = 2
+[*.{bat,cmd}]
+end_of_line = crlf
 
-# Shell scripts
-[*.sh]
-indent_size = 2
+[requirements*.txt]
+insert_final_newline = false
 
-# XML files
-[*.xml]
-indent_size = 2
+[pyproject.toml]
+indent_size = 4
 
-# Configuration files
-[*.{toml,ini,cfg}]
-indent_size = 2
+[setup.cfg]
+indent_size = 4
 
-# Protocol Buffers
 [*.proto]
 indent_size = 2
 
-# Go files
-[*.go]
-indent_style = tab
-indent_size = 4
-
-# Rust files
-[*.rs]
-indent_size = 4
-
-# SQL files
-[*.sql]
+[docker*]
 indent_size = 2
 
-# Ignore binary files
-[*.{png,jpg,jpeg,gif,ico,svg,woff,woff2,ttf,eot}]
-charset = unset
-end_of_line = unset
-insert_final_newline = unset
-trim_trailing_whitespace = unset
-indent_style = unset
-indent_size = unset
+[Dockerfile*]
+indent_size = 2
+
+[*.{sh,bash}]
+indent_size = 2
