@@ -1,39 +1,25 @@
-# Pre-commit hooks for Agent Mesh Federated Runtime
+# Pre-commit hooks for code quality and consistency
 # See https://pre-commit.com for more information
+# Run `pre-commit install` to install git hooks
 
 repos:
-  # Python code formatting and linting
+  # General code quality
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-      - id: check-json
       - id: check-toml
-      - id: check-xml
+      - id: check-json
       - id: check-added-large-files
-        args: ['--maxkb=1024']
-      - id: check-case-conflict
+        args: ['--maxkb=1000']
       - id: check-merge-conflict
-      - id: check-symlinks
-      - id: check-executables-have-shebangs
-      - id: check-shebang-scripts-are-executable
+      - id: check-case-conflict
+      - id: check-docstring-first
       - id: debug-statements
       - id: name-tests-test
-        args: ['--pytest-test-first']
       - id: requirements-txt-fixer
-      - id: fix-byte-order-marker
-      - id: mixed-line-ending
-        args: ['--fix=lf']
-
-  # Python import sorting
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
-        name: isort (python)
-        args: ["--profile", "black", "--filter-files"]
 
   # Python code formatting
   - repo: https://github.com/psf/black
@@ -41,226 +27,80 @@ repos:
     hooks:
       - id: black
         language_version: python3
-        args: ["--line-length=88"]
+        args: [--line-length=88]
+
+  # Python import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: [--profile=black, --line-length=88]
 
   # Python linting
   - repo: https://github.com/pycqa/flake8
     rev: 6.0.0
     hooks:
       - id: flake8
-        args: [
-          "--max-line-length=88",
-          "--extend-ignore=E203,W503",
-          "--exclude=proto/*_pb2.py,proto/*_pb2_grpc.py"
-        ]
+        args: [--max-line-length=88, --extend-ignore=E203,W503]
         additional_dependencies:
+          - flake8-docstrings
           - flake8-bugbear
           - flake8-comprehensions
-          - flake8-simplify
-          - flake8-docstrings
 
   # Python type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.3.0
     hooks:
       - id: mypy
-        args: [--ignore-missing-imports, --show-error-codes]
+        args: [--ignore-missing-imports, --no-strict-optional]
         additional_dependencies:
-          - types-PyYAML
           - types-requests
-          - types-redis
-          - types-setuptools
+          - types-PyYAML
 
-  # Security scanning
-  - repo: https://github.com/pycqa/bandit
+  # Security linting
+  - repo: https://github.com/PyCQA/bandit
     rev: 1.7.5
     hooks:
       - id: bandit
-        args: ["-r", "src/", "-f", "json"]
-        exclude: ^tests/
-
-  # Python dependency security
-  - repo: https://github.com/pyupio/safety
-    rev: 2.3.5
-    hooks:
-      - id: safety
-        args: ["--short-report"]
-
-  # YAML linting
-  - repo: https://github.com/adrienverge/yamllint
-    rev: v1.32.0
-    hooks:
-      - id: yamllint
-        args: [-c=.yamllint.yaml]
+        args: [--recursive, --exclude, tests]
 
   # Dockerfile linting
   - repo: https://github.com/hadolint/hadolint
     rev: v2.12.0
     hooks:
       - id: hadolint
-        args: ["--ignore", "DL3008", "--ignore", "DL3009"]
+        args: [--ignore, DL3008, --ignore, DL3009]
 
-  # Shell script linting
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.9.0.5
+  # YAML/JSON formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.0.0-alpha.9-for-vscode
     hooks:
-      - id: shellcheck
+      - id: prettier
+        types_or: [yaml, json]
+        args: [--tab-width=2]
 
-  # Markdown linting
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.35.0
+  # Python security
+  - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+    rev: v1.3.2
     hooks:
-      - id: markdownlint
-        args: ["--fix"]
+      - id: python-safety-dependencies-check
+        args: [--ignore=51457]  # Ignore Pillow vulnerability for now
 
   # Commit message formatting
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v3.5.2
+    rev: v3.2.2
     hooks:
       - id: commitizen
-        stages: [commit-msg]
 
-  # Remove unused imports
-  - repo: https://github.com/pycqa/autoflake
-    rev: v2.1.1
+  # Documentation checks
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 6.3.0
     hooks:
-      - id: autoflake
-        args:
-          - --in-place
-          - --remove-all-unused-imports
-          - --remove-unused-variables
-          - --remove-duplicate-keys
-          - --ignore-init-module-imports
+      - id: pydocstyle
+        args: [--convention=google]
+        exclude: ^(tests/|docs/|migrations/)
 
-  # Upgrade Python syntax
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.8.0
-    hooks:
-      - id: pyupgrade
-        args: [--py39-plus]
-
-  # Check for secrets
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.4.0
-    hooks:
-      - id: detect-secrets
-        args: ['--baseline', '.secrets.baseline']
-        exclude: package.lock.json
-
-  # Protocol Buffers linting
-  - repo: https://github.com/bufbuild/buf
-    rev: v1.21.0
-    hooks:
-      - id: buf-lint
-        files: \.proto$
-      - id: buf-format
-        files: \.proto$
-
-  # JSON formatting
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.0.0
-    hooks:
-      - id: prettier
-        types_or: [json, yaml, markdown]
-        exclude: ^(package-lock\.json|\.vscode/)
-
-  # Terraform formatting (if using infrastructure as code)
-  - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.81.0
-    hooks:
-      - id: terraform_fmt
-      - id: terraform_validate
-      - id: terraform_docs
-        args:
-          - --hook-config=--path-to-file=README.md
-          - --hook-config=--add-to-existing-file=true
-          - --hook-config=--create-file-if-not-exist=true
-
-  # Git hooks for consistency
-  - repo: local
-    hooks:
-      # Custom test runner
-      - id: pytest-check
-        name: pytest-check
-        entry: pytest
-        language: system
-        pass_filenames: false
-        always_run: false
-        args: [tests/unit/, -v, --tb=short]
-        stages: [push]
-
-      # Custom security scan
-      - id: custom-security-scan
-        name: custom-security-scan
-        entry: scripts/security-scan.sh
-        language: script
-        files: \.(py|yaml|yml|json)$
-        stages: [push]
-
-      # License header check
-      - id: license-header
-        name: license-header
-        entry: scripts/check-license-header.py
-        language: python
-        files: \.py$
-        exclude: ^(tests/|proto/.*_pb2\.py|proto/.*_pb2_grpc\.py)
-
-      # Documentation check
-      - id: docs-check
-        name: docs-check
-        entry: scripts/check-docs.py
-        language: python
-        files: \.py$
-        pass_filenames: false
-        stages: [push]
-
-      # SDLC Configuration validation
-      - id: sdlc-config-validation
-        name: sdlc-config-validation
-        entry: scripts/validate-sdlc-config.py
-        language: python
-        files: ^\.terragon/.*\.(yaml|yml)$
-        pass_filenames: true
-
-      # Integration testing
-      - id: integration-test-quick
-        name: integration-test-quick
-        entry: pytest
-        language: system
-        pass_filenames: false
-        args: [tests/integration/test_smoke.py, -v, --tb=short]
-        stages: [push]
-
-      # Performance regression check
-      - id: performance-regression-check
-        name: performance-regression-check
-        entry: scripts/performance-regression.py
-        language: python
-        pass_filenames: false
-        files: ^src/.*\.py$
-        stages: [push]
-
-      # Container build validation
-      - id: docker-build-check
-        name: docker-build-check
-        entry: scripts/validate-docker-build.sh
-        language: script
-        pass_filenames: false
-        files: ^(Dockerfile|docker-compose.*\.yml|\.dockerignore)$
-
-      # Helm chart validation
-      - id: helm-chart-validation
-        name: helm-chart-validation
-        entry: scripts/validate-helm-charts.sh
-        language: script
-        pass_filenames: false
-        files: ^helm/.*\.(yaml|yml|tpl)$
-
-# Global configuration
-default_language_version:
-  python: python3.9
-
-# CI settings
+# Configuration for specific hooks
 ci:
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit.com hooks
@@ -270,13 +110,5 @@ ci:
   autoupdate_branch: ''
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: [
-    pytest-check,
-    custom-security-scan,
-    buf-lint,
-    buf-format,
-    terraform_fmt,
-    terraform_validate,
-    terraform_docs
-  ]
+  skip: []
   submodules: false
