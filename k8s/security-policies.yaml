@@ -1,0 +1,367 @@
+# Security Policies for Agent Mesh Production Deployment
+# This file contains comprehensive security configurations including
+# Network Policies, Pod Security Standards, and RBAC
+
+# =============================================================================
+# Network Policies
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-mesh-network-policy
+  namespace: agent-mesh
+  labels:
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/component: security
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: agent-mesh
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  # Ingress rules - what can connect to our pods
+  ingress:
+  - from:
+    # Allow traffic from pods in the same namespace
+    - namespaceSelector:
+        matchLabels:
+          name: agent-mesh
+    # Allow traffic from monitoring namespace
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    # Allow traffic from ingress controllers
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000  # HTTP API
+    - protocol: TCP
+      port: 9090  # Metrics
+  
+  # P2P networking - more restrictive
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: agent-mesh
+    ports:
+    - protocol: TCP
+      port: 4001  # P2P
+    - protocol: TCP
+      port: 5001  # gRPC
+  
+  # Egress rules - what our pods can connect to
+  egress:
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  
+  # Allow connection to databases
+  - to: []  # External databases
+    ports:
+    - protocol: TCP
+      port: 5432  # PostgreSQL
+    - protocol: TCP
+      port: 6379  # Redis
+  
+  # Allow HTTPS for external APIs
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+
+---
+# =============================================================================
+# Pod Security Policy (for older clusters) / Pod Security Standards
+# =============================================================================
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: agent-mesh-psp
+  namespace: agent-mesh
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: true
+  seccompProfile:
+    type: 'RuntimeDefault'
+
+---
+# =============================================================================
+# Service Account and RBAC
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-mesh
+  namespace: agent-mesh
+  labels:
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/component: service-account
+automountServiceAccountToken: false
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: agent-mesh
+  name: agent-mesh-role
+  labels:
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/component: rbac
+rules:
+# Minimal permissions for the application
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["statefulsets"]
+  verbs: ["get", "list", "watch"]
+# Metrics and monitoring
+- apiGroups: [""]
+  resources: ["endpoints", "services"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: agent-mesh-rolebinding
+  namespace: agent-mesh
+  labels:
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/component: rbac
+subjects:
+- kind: ServiceAccount
+  name: agent-mesh
+  namespace: agent-mesh
+roleRef:
+  kind: Role
+  name: agent-mesh-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# =============================================================================
+# Security Context Constraints (OpenShift)
+# =============================================================================
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: agent-mesh-scc
+  labels:
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/component: security
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+requiredDropCapabilities:
+- ALL
+fsGroup:
+  type: RunAsAny
+readOnlyRootFilesystem: true
+runAsUser:
+  type: MustRunAsNonRoot
+seLinuxContext:
+  type: MustRunAs
+users:
+- system:serviceaccount:agent-mesh:agent-mesh
+
+---
+# =============================================================================
+# Admission Controller Policies (OPA Gatekeeper)
+# =============================================================================
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: agentmeshsecurity
+  labels:
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/component: admission-control
+spec:
+  crd:
+    spec:
+      names:
+        kind: AgentMeshSecurity
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            requiredLabels:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package agentmeshsecurity
+        
+        violation[{"msg": msg}] {
+          required_labels := input.parameters.requiredLabels
+          provided_labels := input.review.object.metadata.labels
+          missing := required_labels[_]
+          not provided_labels[missing]
+          msg := sprintf("Missing required label: %v", [missing])
+        }
+        
+        violation[{"msg": "Container must not run as root"}] {
+          input.review.object.spec.containers[_].securityContext.runAsUser == 0
+        }
+        
+        violation[{"msg": "Container must have security context"}] {
+          not input.review.object.spec.containers[_].securityContext
+        }
+
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: AgentMeshSecurity
+metadata:
+  name: agent-mesh-security-constraints
+  namespace: agent-mesh
+spec:
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet"]
+    namespaces: ["agent-mesh"]
+  parameters:
+    requiredLabels: 
+      - "app.kubernetes.io/name"
+      - "app.kubernetes.io/component"
+
+---
+# =============================================================================
+# Secrets Management
+# =============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: agent-mesh-secrets
+  namespace: agent-mesh
+  labels:
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/component: secrets
+type: Opaque
+data:
+  # These would be populated by external secret management
+  # (Vault, AWS Secrets Manager, etc.)
+  db-password: ""  # Base64 encoded
+  redis-password: ""
+  api-key: ""
+  encryption-key: ""
+
+---
+# =============================================================================
+# Certificate Management
+# =============================================================================
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: agent-mesh-tls
+  namespace: agent-mesh
+  labels:
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/component: tls
+spec:
+  secretName: agent-mesh-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - agent-mesh.terragon.ai
+  - api.agent-mesh.terragon.ai
+  - p2p.agent-mesh.terragon.ai
+
+---
+# =============================================================================
+# Falco Security Monitoring Rules
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-mesh-falco-rules
+  namespace: agent-mesh
+  labels:
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/component: security-monitoring
+data:
+  agent_mesh_rules.yaml: |
+    - rule: Agent Mesh Unauthorized Network Connection
+      desc: Detect unauthorized network connections from Agent Mesh pods
+      condition: >
+        (k8s_audit and ka.verb=create and ka.uri.path contains "/api/v1/namespaces/agent-mesh/pods") or
+        (inbound_outbound and k8s.ns.name=agent-mesh and not fd.net.cip in (allowed_ips))
+      output: >
+        Unauthorized network connection from Agent Mesh pod
+        (user=%ka.user.name verb=%ka.verb uri=%ka.uri.path pod=%k8s.pod.name)
+      priority: WARNING
+      tags: [network, k8s_audit, agent-mesh]
+    
+    - rule: Agent Mesh Privilege Escalation
+      desc: Detect privilege escalation attempts in Agent Mesh containers
+      condition: >
+        spawned_process and container.image contains "agent-mesh" and
+        (proc.name in (su, sudo, setuid_binaries) or proc.args contains "chmod")
+      output: >
+        Privilege escalation attempt in Agent Mesh container
+        (user=%user.name command=%proc.cmdline container=%container.name)
+      priority: HIGH
+      tags: [privilege_escalation, container, agent-mesh]
+
+---
+# =============================================================================
+# Pod Disruption Budget for High Availability
+# =============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: agent-mesh-pdb
+  namespace: agent-mesh
+  labels:
+    app.kubernetes.io/name: agent-mesh
+    app.kubernetes.io/component: availability
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agent-mesh
+  minAvailable: 2  # Always keep at least 2 pods running
+  maxUnavailable: 50%  # Never take down more than 50% at once
