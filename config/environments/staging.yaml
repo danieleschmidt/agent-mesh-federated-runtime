@@ -1,0 +1,110 @@
+# Staging Environment Configuration for Agent Mesh Federated Runtime
+# This configuration mirrors production but with relaxed settings for testing
+
+system:
+  environment: staging
+  version: "1.0.0-staging"
+  deployment_region: us-east-1
+  timezone: UTC
+  
+  resources:
+    max_memory_gb: 4
+    max_cpu_cores: 2
+    max_disk_gb: 50
+    max_network_connections: 1000
+  
+  global:
+    enabled: false
+    multi_region: false
+    regions: [us-east-1]
+    load_balancing: true
+    cdn_integration: false
+
+security:
+  level: strict
+  crypto:
+    algorithm: Ed25519
+    key_rotation_days: 7  # Faster rotation for testing
+    encryption_at_rest: true
+    encryption_in_transit: true
+  
+  auth:
+    method: basic
+    token_expiry_hours: 4
+    refresh_token_days: 1
+    max_failed_attempts: 5
+    lockout_duration_minutes: 5
+  
+  access_control:
+    rbac_enabled: true
+    abac_enabled: true
+    audit_logging: true
+    compliance_mode: testing
+
+network:
+  p2p:
+    listen_port: 4001
+    bootstrap_nodes:
+      - "/dns4/staging-bootstrap.agent-mesh.terragon.ai/tcp/4001"
+    max_peers: 50
+    connection_timeout_seconds: 10
+  
+  api:
+    host: "0.0.0.0"
+    port: 8000
+    enable_cors: true
+    cors_origins: ["*"]
+    rate_limiting:
+      enabled: true
+      requests_per_minute: 100
+      burst_size: 20
+  
+  grpc:
+    port: 5001
+    max_message_size_mb: 50
+    keepalive_time_seconds: 30
+    keepalive_timeout_seconds: 5
+
+monitoring:
+  metrics:
+    enabled: true
+    interval_seconds: 30
+    exporters: [prometheus]
+  
+  logging:
+    level: DEBUG
+    format: json
+    output: stdout
+    structured: true
+    sampling_rate: 1.0
+  
+  tracing:
+    enabled: true
+    service_name: agent-mesh-staging
+    sampling_rate: 1.0  # 100% sampling for testing
+
+performance:
+  caching:
+    enabled: true
+    max_memory_mb: 256
+    strategy: lru
+    ttl_seconds: 1800
+  
+  auto_scaling:
+    enabled: true
+    min_instances: 1
+    max_instances: 5
+    target_cpu_percent: 80
+    target_memory_percent: 85
+
+features:
+  experimental:
+    quantum_optimization: true
+    advanced_ml_acceleration: true
+    edge_computing: true
+  
+  production:
+    multi_region_deployment: false
+    auto_scaling: true
+    security_hardening: true
+    compliance_mode: false

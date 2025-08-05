@@ -662,7 +662,3 @@ class P2PNetwork:
             except Exception as e:
                 self.logger.error("Maintenance loop error", error=str(e))
                 await asyncio.sleep(30)
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._pending_requests: Dict[str, asyncio.Future] = {}

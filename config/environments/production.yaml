@@ -1,0 +1,370 @@
+# Production Environment Configuration for Agent Mesh Federated Runtime
+# This configuration is optimized for production deployment with high availability,
+# security, and global distribution capabilities.
+
+# =============================================================================
+# Core System Configuration
+# =============================================================================
+system:
+  environment: production
+  version: "1.0.0"
+  deployment_region: global
+  timezone: UTC
+  
+  # Resource limits for production
+  resources:
+    max_memory_gb: 8
+    max_cpu_cores: 4
+    max_disk_gb: 100
+    max_network_connections: 10000
+  
+  # Global distribution settings
+  global:
+    enabled: true
+    multi_region: true
+    regions: 
+      - us-east-1
+      - us-west-2
+      - eu-west-1
+      - ap-southeast-1
+      - ap-northeast-1
+    load_balancing: true
+    cdn_integration: true
+
+# =============================================================================
+# Security Configuration
+# =============================================================================
+security:
+  # Security level (paranoid for production)
+  level: paranoid
+  
+  # Cryptographic settings
+  crypto:
+    algorithm: Ed25519
+    key_rotation_days: 30
+    encryption_at_rest: true
+    encryption_in_transit: true
+  
+  # Authentication and authorization
+  auth:
+    method: multi_factor
+    token_expiry_hours: 1
+    refresh_token_days: 7
+    max_failed_attempts: 3
+    lockout_duration_minutes: 15
+  
+  # Access control
+  access_control:
+    rbac_enabled: true
+    abac_enabled: true
+    audit_logging: true
+    compliance_mode: strict
+  
+  # Network security
+  network:
+    tls_version: "1.3"
+    certificate_validation: strict
+    firewall_enabled: true
+    intrusion_detection: true
+
+# =============================================================================
+# Networking Configuration
+# =============================================================================
+network:
+  # P2P networking
+  p2p:
+    listen_port: 4001
+    bootstrap_nodes:
+      - "/dns4/bootstrap-1.agent-mesh.terragon.ai/tcp/4001"
+      - "/dns4/bootstrap-2.agent-mesh.terragon.ai/tcp/4001"
+      - "/dns4/bootstrap-3.agent-mesh.terragon.ai/tcp/4001"
+    max_peers: 200
+    connection_timeout_seconds: 30
+  
+  # API endpoints
+  api:
+    host: "0.0.0.0"
+    port: 8000
+    enable_cors: true
+    cors_origins:
+      - "https://dashboard.agent-mesh.terragon.ai"
+      - "https://monitor.agent-mesh.terragon.ai"
+    rate_limiting:
+      enabled: true
+      requests_per_minute: 1000
+      burst_size: 100
+  
+  # gRPC configuration
+  grpc:
+    port: 5001
+    max_message_size_mb: 100
+    keepalive_time_seconds: 60
+    keepalive_timeout_seconds: 10
+
+# =============================================================================
+# Database Configuration
+# =============================================================================
+database:
+  # Primary database
+  primary:
+    type: postgresql
+    host: "${DB_HOST}"
+    port: 5432
+    database: "${DB_NAME}"
+    username: "${DB_USER}"
+    password: "${DB_PASSWORD}"
+    ssl_mode: require
+    max_connections: 100
+    connection_timeout_seconds: 30
+  
+  # Redis for caching
+  redis:
+    host: "${REDIS_HOST}"
+    port: 6379
+    password: "${REDIS_PASSWORD}"
+    ssl: true
+    max_connections: 50
+    db: 0
+  
+  # Backup configuration
+  backup:
+    enabled: true
+    schedule: "0 2 * * *"  # Daily at 2 AM UTC
+    retention_days: 30
+    encryption: true
+
+# =============================================================================
+# Monitoring and Observability
+# =============================================================================
+monitoring:
+  # Metrics collection
+  metrics:
+    enabled: true
+    endpoint: "/metrics"
+    port: 9090
+    interval_seconds: 15
+    exporters:
+      - prometheus
+      - datadog
+      - grafana
+  
+  # Logging
+  logging:
+    level: INFO
+    format: json
+    output: stdout
+    structured: true
+    sampling_rate: 1.0
+    
+    # Log destinations
+    destinations:
+      - type: elasticsearch
+        endpoint: "${ELASTICSEARCH_ENDPOINT}"
+        index: "agent-mesh-logs"
+      - type: datadog
+        api_key: "${DATADOG_API_KEY}"
+  
+  # Tracing
+  tracing:
+    enabled: true
+    service_name: agent-mesh-production
+    endpoint: "${JAEGER_ENDPOINT}"
+    sampling_rate: 0.1  # 10% sampling for production
+  
+  # Health checks
+  health_checks:
+    enabled: true
+    endpoint: "/health"
+    timeout_seconds: 10
+    checks:
+      - system_resources
+      - database_connectivity
+      - network_connectivity
+      - consensus_health
+      - peer_connectivity
+
+# =============================================================================
+# Performance and Scaling
+# =============================================================================
+performance:
+  # Caching configuration
+  caching:
+    enabled: true
+    max_memory_mb: 1024
+    strategy: adaptive
+    ttl_seconds: 3600
+    compression: true
+  
+  # Auto-scaling
+  auto_scaling:
+    enabled: true
+    min_instances: 3
+    max_instances: 50
+    target_cpu_percent: 70
+    target_memory_percent: 80
+    scale_up_cooldown_seconds: 120
+    scale_down_cooldown_seconds: 300
+  
+  # Load balancing
+  load_balancing:
+    strategy: least_connections
+    health_check_interval_seconds: 30
+    circuit_breaker:
+      enabled: true
+      failure_threshold: 5
+      timeout_seconds: 30
+
+# =============================================================================
+# Federated Learning Configuration
+# =============================================================================
+federated_learning:
+  # Algorithm settings
+  algorithm: fedavg
+  
+  # Training parameters
+  training:
+    rounds: 100
+    participants_per_round: 10
+    min_participants: 3
+    convergence_threshold: 0.001
+    timeout_minutes: 30
+  
+  # Model management
+  model:
+    checkpoint_interval: 10
+    model_compression: true
+    differential_privacy: true
+    secure_aggregation: true
+  
+  # Privacy settings
+  privacy:
+    epsilon: 1.0  # Differential privacy parameter
+    delta: 0.001
+    noise_multiplier: 1.1
+
+# =============================================================================
+# Consensus Configuration
+# =============================================================================
+consensus:
+  # Consensus algorithm
+  algorithm: pbft
+  
+  # Fault tolerance
+  byzantine_fault_tolerance: 0.33  # Can tolerate up to 33% Byzantine nodes
+  
+  # Timing parameters
+  timing:
+    view_timeout_seconds: 10
+    checkpoint_interval: 100
+    max_batch_size: 1000
+  
+  # Leader election
+  leader_election:
+    rotation_enabled: true
+    rotation_interval_blocks: 100
+
+# =============================================================================
+# Global Distribution Settings
+# =============================================================================
+global_distribution:
+  # CDN configuration
+  cdn:
+    provider: cloudflare
+    edge_locations: all
+    cache_static_content: true
+    cache_ttl_seconds: 86400
+  
+  # Regional settings
+  regions:
+    us_east_1:
+      primary: true
+      replicas: 5
+      datacenter: "us-east-1a"
+    us_west_2:
+      replicas: 3
+      datacenter: "us-west-2b"
+    eu_west_1:
+      replicas: 3
+      datacenter: "eu-west-1c"
+    ap_southeast_1:
+      replicas: 2
+      datacenter: "ap-southeast-1a"
+    ap_northeast_1:
+      replicas: 2
+      datacenter: "ap-northeast-1b"
+  
+  # Cross-region replication
+  replication:
+    enabled: true
+    consistency_level: eventual
+    sync_interval_seconds: 30
+
+# =============================================================================
+# Compliance and Governance
+# =============================================================================
+compliance:
+  # Regulatory compliance
+  gdpr:
+    enabled: true
+    data_retention_days: 730
+    right_to_be_forgotten: true
+  
+  ccpa:
+    enabled: true
+    opt_out_support: true
+  
+  # Audit configuration
+  audit:
+    enabled: true
+    log_all_actions: true
+    retention_years: 7
+    encryption: true
+  
+  # Data governance
+  data_governance:
+    classification: confidential
+    encryption_required: true
+    access_logging: true
+    data_masking: true
+
+# =============================================================================
+# Emergency and Disaster Recovery
+# =============================================================================
+disaster_recovery:
+  # Backup strategy
+  backup:
+    enabled: true
+    frequency: daily
+    retention_months: 12
+    cross_region: true
+    encryption: true
+  
+  # Failover configuration
+  failover:
+    enabled: true
+    automatic: true
+    rto_minutes: 15  # Recovery Time Objective
+    rpo_minutes: 5   # Recovery Point Objective
+  
+  # Circuit breakers
+  circuit_breakers:
+    enabled: true
+    failure_threshold: 10
+    recovery_timeout_seconds: 60
+
+# =============================================================================
+# Feature Flags
+# =============================================================================
+features:
+  # Experimental features
+  experimental:
+    quantum_optimization: false
+    advanced_ml_acceleration: true
+    edge_computing: true
+  
+  # Production features
+  production:
+    multi_region_deployment: true
+    auto_scaling: true
+    security_hardening: true
+    compliance_mode: true
