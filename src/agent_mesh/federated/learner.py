@@ -177,10 +177,14 @@ class FederatedLearner:
         self.train_loader = None
         
         # Coordination state
-        self._round_participants: Set[UUID] = set()
+        self._round_participants: set[UUID] = set()
         self._round_updates: Dict[UUID, LocalTrainingResult] = {}
         self._training_task: Optional[asyncio.Task] = None
         self._is_coordinator = False
+        
+        # Message handling
+        self._pending_invitations: List[Dict[str, Any]] = []
+        self._pending_model_updates: List[Dict[str, Any]] = []
     
     async def start_training(self) -> None:
         """Start federated learning process."""
@@ -735,16 +739,59 @@ class FederatedLearner:
     
     async def _wait_for_training_invitation(self) -> Optional[Dict[str, Any]]:
         """Wait for training invitation from coordinator."""
-        # This would be implemented using network message handlers
-        # For now, return None to indicate no invitation
+        # Wait for federated learning message from coordinator
+        if hasattr(self, '_pending_invitations'):
+            if self._pending_invitations:
+                return self._pending_invitations.pop(0)
+        
+        # Poll for invitations with timeout
+        for _ in range(30):  # Wait up to 30 seconds
+            await asyncio.sleep(1)
+            if hasattr(self, '_pending_invitations') and self._pending_invitations:
+                return self._pending_invitations.pop(0)
+        
         return None
     
     async def _send_training_result(self, result: LocalTrainingResult) -> None:
         """Send training result to coordinator."""
-        # This would send the result via network
-        pass
+        if not self.network:
+            return
+        
+        # Find coordinator ID from participants
+        coordinator_id = None
+        for pid, info in self.participants.items():
+            if info.role == ParticipantRole.COORDINATOR:
+                coordinator_id = pid
+                break
+        
+        if coordinator_id:
+            message = {
+                "type": "training_result",
+                "result": result.dict()
+            }
+            
+            try:
+                await self.network.send_message(
+                    coordinator_id,
+                    "federated_learning",
+                    message
+                )
+            except Exception as e:
+                self.logger.error("Failed to send training result", error=str(e))
     
     async def _wait_for_global_model_update(self) -> None:
         """Wait for global model update from coordinator."""
-        # This would wait for model update message
-        pass
+        # Wait for global model update message
+        if hasattr(self, '_pending_model_updates'):
+            if self._pending_model_updates:
+                update = self._pending_model_updates.pop(0)
+                self.global_model = self._deserialize_model(update.get('model', {}))
+                return
+        
+        # Poll for model updates with timeout
+        for _ in range(60):  # Wait up to 60 seconds
+            await asyncio.sleep(1)
+            if hasattr(self, '_pending_model_updates') and self._pending_model_updates:
+                update = self._pending_model_updates.pop(0)
+                self.global_model = self._deserialize_model(update.get('model', {}))
+                return

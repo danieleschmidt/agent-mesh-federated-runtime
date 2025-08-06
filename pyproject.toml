@@ -61,7 +61,6 @@ dependencies = [
     "torch>=2.0.0",
     "transformers>=4.20.0",
     "datasets>=2.0.0",
-    "py-libp2p>=0.1.0",
     "aiodns>=3.0.0",
     "aiofiles>=0.8.0",
     "sqlalchemy>=2.0.0",
