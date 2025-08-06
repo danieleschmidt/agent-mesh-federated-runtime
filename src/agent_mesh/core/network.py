@@ -521,6 +521,8 @@ class P2PNetwork:
         
         # Set up response waiting
         response_future = asyncio.Future()
+        if not hasattr(self, '_pending_requests'):
+            self._pending_requests = {}
         self._pending_requests[request_id] = response_future
         
         try:

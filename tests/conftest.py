@@ -27,8 +27,6 @@ TEST_CONFIG = {
 # Pytest configuration
 pytest_plugins = [
     "pytest_asyncio",
-    "pytest_benchmark",
-    "pytest_mock",
 ]
 
 

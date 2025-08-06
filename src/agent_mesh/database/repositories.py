@@ -456,6 +456,67 @@ class TrainingRoundRepository(BaseRepository):
         }
 
 
+class ConsensusRepository(BaseRepository):
+    """Repository for consensus round data."""
+    
+    async def create_consensus_round(self, round_data: Dict[str, Any]) -> ConsensusRound:
+        """Create a new consensus round record."""
+        consensus_round = ConsensusRound(**round_data)
+        self.session.add(consensus_round)
+        await self.session.flush()
+        await self.session.refresh(consensus_round)
+        
+        self.logger.info("Consensus round created", 
+                        round_id=str(consensus_round.round_id),
+                        proposal_id=str(consensus_round.proposal_id))
+        return consensus_round
+    
+    async def get_consensus_round(self, round_id: UUID) -> Optional[ConsensusRound]:
+        """Get consensus round by ID."""
+        query = select(ConsensusRound).where(ConsensusRound.round_id == round_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+    
+    async def update_consensus_round(self, round_id: UUID, updates: Dict[str, Any]) -> Optional[ConsensusRound]:
+        """Update consensus round information."""
+        consensus_round = await self.get_consensus_round(round_id)
+        if not consensus_round:
+            return None
+        
+        for key, value in updates.items():
+            if hasattr(consensus_round, key):
+                setattr(consensus_round, key, value)
+        
+        await self.session.flush()
+        await self.session.refresh(consensus_round)
+        
+        self.logger.info("Consensus round updated", round_id=str(round_id))
+        return consensus_round
+    
+    async def get_proposal_rounds(self, proposal_id: UUID) -> List[ConsensusRound]:
+        """Get all consensus rounds for a proposal."""
+        query = (
+            select(ConsensusRound)
+            .where(ConsensusRound.proposal_id == proposal_id)
+            .order_by(asc(ConsensusRound.created_at))
+        )
+        
+        result = await self.session.execute(query)
+        return result.scalars().all()
+    
+    async def get_node_consensus_history(self, node_id: UUID, limit: int = 100) -> List[ConsensusRound]:
+        """Get consensus participation history for a node."""
+        query = (
+            select(ConsensusRound)
+            .where(ConsensusRound.proposer_id == node_id)
+            .order_by(desc(ConsensusRound.created_at))
+            .limit(limit)
+        )
+        
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+
 class MetricsRepository(BaseRepository):
     """Repository for metrics and monitoring data."""
     
