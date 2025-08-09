@@ -1,8 +1,213 @@
-"""Advanced monitoring, metrics, and observability for Agent Mesh.
+"""Comprehensive monitoring and observability system.
 
-This module provides comprehensive monitoring capabilities including
-metrics collection, health checks, performance tracking, and alerting.
+This module provides real-time monitoring, metrics collection, alerting,
+and performance analysis for the Agent Mesh system.
 """
+
+import asyncio
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Callable, Union
+from uuid import UUID, uuid4
+
+import structlog
+from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, generate_latest
+
+
+class MetricType(Enum):
+    """Types of metrics."""
+    
+    COUNTER = "counter"
+    GAUGE = "gauge" 
+    HISTOGRAM = "histogram"
+    SUMMARY = "summary"
+
+
+class AlertSeverity(Enum):
+    """Alert severity levels."""
+    
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
+
+
+@dataclass
+class MetricDefinition:
+    """Definition of a metric."""
+    
+    name: str
+    metric_type: MetricType
+    description: str
+    labels: List[str] = field(default_factory=list)
+    buckets: Optional[List[float]] = None  # For histograms
+
+
+@dataclass
+class AlertRule:
+    """Definition of an alert rule."""
+    
+    name: str
+    condition: str  # Metric query condition
+    threshold: float
+    severity: AlertSeverity
+    description: str
+    duration: float = 300.0  # seconds before triggering
+    labels: Dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class Alert:
+    """Active alert."""
+    
+    alert_id: UUID = field(default_factory=uuid4)
+    rule_name: str = ""
+    severity: AlertSeverity = AlertSeverity.WARNING
+    message: str = ""
+    labels: Dict[str, str] = field(default_factory=dict)
+    started_at: float = field(default_factory=time.time)
+    resolved_at: Optional[float] = None
+    resolved: bool = False
+
+
+class MeshMonitor:
+    """Comprehensive monitoring system for Agent Mesh."""
+    
+    def __init__(self, node_id: UUID):
+        self.node_id = node_id
+        self.logger = structlog.get_logger("mesh_monitor", node_id=str(node_id))
+        
+        # Metrics storage
+        self.metrics: Dict[str, Any] = {}
+        self.active_alerts: Dict[str, Alert] = {}
+        self.performance_history: List[Dict[str, Any]] = []
+        
+        # Configuration
+        self.monitoring_interval = 30.0
+        self._monitoring_task: Optional[asyncio.Task] = None
+        self._running = False
+        
+    async def start(self):
+        """Start monitoring system."""
+        self.logger.info("Starting mesh monitoring")
+        self._running = True
+        self._monitoring_task = asyncio.create_task(self._monitoring_loop())
+        
+    async def stop(self):
+        """Stop monitoring system."""
+        self.logger.info("Stopping mesh monitoring")
+        self._running = False
+        
+        if self._monitoring_task:
+            self._monitoring_task.cancel()
+            try:
+                await self._monitoring_task
+            except asyncio.CancelledError:
+                pass
+                
+    def record_metric(self, name: str, value: float, labels: Optional[Dict[str, str]] = None):
+        """Record a metric value."""
+        timestamp = time.time()
+        metric_key = f"{name}_{labels}" if labels else name
+        
+        self.metrics[metric_key] = {
+            "name": name,
+            "value": value,
+            "labels": labels or {},
+            "timestamp": timestamp
+        }
+        
+    def trigger_alert(self, name: str, severity: AlertSeverity, message: str):
+        """Trigger an alert."""
+        alert = Alert(
+            rule_name=name,
+            severity=severity,
+            message=message
+        )
+        
+        self.active_alerts[name] = alert
+        
+        self.logger.warning("Alert triggered",
+                           alert_name=name,
+                           severity=severity.value,
+                           message=message)
+                           
+    def resolve_alert(self, name: str):
+        """Resolve an alert."""
+        if name in self.active_alerts:
+            alert = self.active_alerts[name]
+            alert.resolved = True
+            alert.resolved_at = time.time()
+            del self.active_alerts[name]
+            
+            self.logger.info("Alert resolved", alert_name=name)
+            
+    def get_health_status(self) -> Dict[str, Any]:
+        """Get system health status."""
+        critical_alerts = [a for a in self.active_alerts.values() if a.severity == AlertSeverity.CRITICAL]
+        error_alerts = [a for a in self.active_alerts.values() if a.severity == AlertSeverity.ERROR]
+        
+        if critical_alerts:
+            status = "CRITICAL"
+        elif error_alerts:
+            status = "ERROR" 
+        elif self.active_alerts:
+            status = "WARNING"
+        else:
+            status = "HEALTHY"
+            
+        return {
+            "status": status,
+            "timestamp": time.time(),
+            "active_alerts": len(self.active_alerts),
+            "node_id": str(self.node_id)
+        }
+        
+    async def _monitoring_loop(self):
+        """Background monitoring loop."""
+        while self._running:
+            try:
+                await self._collect_performance_data()
+                await asyncio.sleep(self.monitoring_interval)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.error("Monitoring error", error=str(e))
+                await asyncio.sleep(self.monitoring_interval)
+                
+    async def _collect_performance_data(self):
+        """Collect system performance data."""
+        try:
+            import psutil
+            
+            cpu_percent = psutil.cpu_percent()
+            memory = psutil.virtual_memory()
+            
+            performance_data = {
+                "timestamp": time.time(),
+                "cpu_percent": cpu_percent,
+                "memory_percent": memory.percent,
+                "memory_used_bytes": memory.used,
+            }
+            
+            self.performance_history.append(performance_data)
+            
+            # Keep only recent history
+            if len(self.performance_history) > 1000:
+                self.performance_history = self.performance_history[-500:]
+                
+            # Check for alerts
+            if cpu_percent > 80:
+                self.trigger_alert("high_cpu", AlertSeverity.WARNING, f"CPU usage at {cpu_percent}%")
+            elif "high_cpu" in self.active_alerts:
+                self.resolve_alert("high_cpu")
+                
+        except ImportError:
+            # psutil not available
+            pass
+        except Exception as e:
+            self.logger.error("Performance collection failed", error=str(e))
 
 import asyncio
 import json

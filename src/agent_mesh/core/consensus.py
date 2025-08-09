@@ -99,6 +99,164 @@ class ConsensusResult:
     reason: Optional[str] = None
 
 
+class ConsensusEngine:
+    """Simple consensus engine implementation."""
+    
+    def __init__(self, node_id: UUID, network=None):
+        self.node_id = node_id
+        self.network = network
+        self.logger = structlog.get_logger("consensus", node_id=str(node_id))
+        
+        # Consensus state
+        self.config = ConsensusConfig()
+        self.active_proposals: Dict[UUID, Proposal] = {}
+        self.votes: Dict[UUID, List[Vote]] = {}  # proposal_id -> votes
+        self.consensus_results: Dict[UUID, ConsensusResult] = {}
+        
+        self.running = False
+        self.view_number = 0
+        
+    async def start(self) -> None:
+        """Start the consensus engine."""
+        self.logger.info("Starting consensus engine")
+        self.running = True
+        
+    async def stop(self) -> None:
+        """Stop the consensus engine."""
+        self.logger.info("Stopping consensus engine")
+        self.running = False
+        
+    async def propose(self, proposal_data: Dict[str, Any]) -> ConsensusResult:
+        """Propose a value for consensus."""
+        proposal = Proposal(
+            proposer_id=self.node_id,
+            proposal_type=proposal_data.get("type", "general"),
+            data=proposal_data,
+            view_number=self.view_number
+        )
+        
+        self.logger.info("Creating proposal", 
+                        proposal_id=str(proposal.proposal_id),
+                        proposal_type=proposal.proposal_type)
+        
+        # Store proposal
+        self.active_proposals[proposal.proposal_id] = proposal
+        self.votes[proposal.proposal_id] = []
+        
+        # Start voting process
+        result = await self._run_consensus(proposal)
+        
+        # Store result
+        self.consensus_results[proposal.proposal_id] = result
+        
+        return result
+        
+    async def vote_on_proposal(self, proposal_id: UUID, approve: bool, reason: Optional[str] = None) -> bool:
+        """Vote on a proposal."""
+        if proposal_id not in self.active_proposals:
+            return False
+            
+        vote = Vote(
+            proposal_id=proposal_id,
+            voter_id=self.node_id,
+            vote_type=VoteType.APPROVE if approve else VoteType.REJECT,
+            approve=approve,
+            view_number=self.view_number,
+            reason=reason
+        )
+        
+        self.votes[proposal_id].append(vote)
+        
+        self.logger.info("Vote cast",
+                        proposal_id=str(proposal_id),
+                        approve=approve,
+                        voter_id=str(self.node_id))
+        
+        return True
+        
+    async def get_proposal(self, proposal_id: UUID) -> Optional[Proposal]:
+        """Get a proposal by ID."""
+        return self.active_proposals.get(proposal_id)
+        
+    async def get_consensus_result(self, proposal_id: UUID) -> Optional[ConsensusResult]:
+        """Get consensus result for a proposal."""
+        return self.consensus_results.get(proposal_id)
+        
+    async def _run_consensus(self, proposal: Proposal) -> ConsensusResult:
+        """Run consensus algorithm for a proposal."""
+        # Simple majority consensus (for demonstration)
+        timeout = self.config.timeout_seconds
+        start_time = time.time()
+        
+        # Add our own vote (proposer automatically approves)
+        await self.vote_on_proposal(proposal.proposal_id, True, "proposer")
+        
+        # Wait for votes or timeout
+        while time.time() - start_time < timeout:
+            votes = self.votes[proposal.proposal_id]
+            
+            if len(votes) >= self.config.min_participants:
+                # Count votes
+                votes_for = sum(1 for vote in votes if vote.approve)
+                votes_against = len(votes) - votes_for
+                
+                # Simple majority
+                if votes_for > votes_against:
+                    result = ConsensusResult(
+                        proposal_id=proposal.proposal_id,
+                        accepted=True,
+                        value=proposal.data,
+                        votes_for=votes_for,
+                        votes_against=votes_against,
+                        participants={vote.voter_id for vote in votes}
+                    )
+                    
+                    self.logger.info("Consensus reached - ACCEPTED",
+                                   proposal_id=str(proposal.proposal_id),
+                                   votes_for=votes_for,
+                                   votes_against=votes_against)
+                    
+                    return result
+                else:
+                    result = ConsensusResult(
+                        proposal_id=proposal.proposal_id,
+                        accepted=False,
+                        votes_for=votes_for,
+                        votes_against=votes_against,
+                        participants={vote.voter_id for vote in votes},
+                        reason="Majority rejected"
+                    )
+                    
+                    self.logger.info("Consensus reached - REJECTED",
+                                   proposal_id=str(proposal.proposal_id),
+                                   votes_for=votes_for,
+                                   votes_against=votes_against)
+                    
+                    return result
+                    
+            await asyncio.sleep(0.5)  # Check every 500ms
+            
+        # Timeout reached
+        votes = self.votes[proposal.proposal_id]
+        votes_for = sum(1 for vote in votes if vote.approve)
+        votes_against = len(votes) - votes_for
+        
+        result = ConsensusResult(
+            proposal_id=proposal.proposal_id,
+            accepted=False,
+            votes_for=votes_for,
+            votes_against=votes_against,
+            participants={vote.voter_id for vote in votes},
+            reason="Timeout"
+        )
+        
+        self.logger.warning("Consensus timeout",
+                          proposal_id=str(proposal.proposal_id),
+                          votes_received=len(votes))
+        
+        return result
+
+
 class ConsensusParticipant(BaseModel):
     """Information about consensus participant."""
     

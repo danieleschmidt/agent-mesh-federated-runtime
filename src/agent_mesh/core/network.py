@@ -108,6 +108,28 @@ class P2PTransport(ABC):
     
     @abstractmethod
     async def send_message(self, peer_id: UUID, message: NetworkMessage) -> None:
+        """Send message to a peer."""
+        pass
+    
+    @abstractmethod
+    async def broadcast_message(self, message: NetworkMessage) -> None:
+        """Broadcast message to all connected peers."""
+        pass
+    
+    @abstractmethod
+    async def get_connected_peers(self) -> List[PeerInfo]:
+        """Get list of connected peers."""
+        pass
+        """Stop the transport layer."""
+        pass
+    
+    @abstractmethod
+    async def connect_to_peer(self, peer_addr: str) -> PeerInfo:
+        """Connect to a peer."""
+        pass
+    
+    @abstractmethod
+    async def send_message(self, peer_id: UUID, message: NetworkMessage) -> None:
         """Send message to a specific peer."""
         pass
     

@@ -16,7 +16,7 @@ from uuid import uuid4, UUID
 import structlog
 from pydantic import BaseModel, Field
 
-from .network import P2PNetwork, PeerInfo
+from .simple_network import SimpleP2PNetwork as P2PNetwork, PeerInfo
 from .consensus import ConsensusEngine, ConsensusResult
 from .security import SecurityManager, NodeIdentity
 
