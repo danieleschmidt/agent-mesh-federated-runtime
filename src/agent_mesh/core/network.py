@@ -7,6 +7,8 @@ for maximum connectivity and performance.
 
 import asyncio
 import json
+import socket
+import struct
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -16,6 +18,28 @@ from uuid import UUID, uuid4
 
 import structlog
 from pydantic import BaseModel, Field
+
+from .health import CircuitBreaker, RetryManager
+
+
+class NetworkError(Exception):
+    """Base class for network errors."""
+    pass
+
+
+class NetworkConnectionError(NetworkError):
+    """Error connecting to peer."""
+    pass
+
+
+class NetworkTimeoutError(NetworkError):
+    """Network operation timeout."""
+    pass
+
+
+class NetworkProtocolError(NetworkError):
+    """Network protocol error."""
+    pass
 
 
 class TransportProtocol(Enum):
@@ -172,6 +196,19 @@ class LibP2PTransport(P2PTransport):
         self.logger.info("Stopping libp2p transport")
         self._running = False
         
+        # Stop background tasks
+        if hasattr(self, '_dispatcher_task'):
+            self._dispatcher_task.cancel()
+            try:
+                await self._dispatcher_task
+            except asyncio.CancelledError:
+                pass
+        
+        # Close TCP server
+        if hasattr(self, '_tcp_server'):
+            self._tcp_server.close()
+            await self._tcp_server.wait_closed()
+        
         # Close all connections
         for peer_id in list(self._connections.keys()):
             await self._disconnect_peer(peer_id)
@@ -231,13 +268,19 @@ class LibP2PTransport(P2PTransport):
     # Private methods
     
     async def _simulate_libp2p_start(self) -> None:
-        """Simulate libp2p initialization."""
-        # In real implementation, this would:
-        # 1. Initialize libp2p node
-        # 2. Set up transport protocols
-        # 3. Configure security
-        # 4. Start listening
-        await asyncio.sleep(0.1)  # Simulate startup time
+        """Initialize real TCP-based P2P transport."""
+        # Start TCP server for incoming connections
+        self._tcp_server = await asyncio.start_server(
+            self._handle_incoming_connection,
+            '0.0.0.0',
+            self._extract_port_from_addr(self._listen_addr)
+        )
+        
+        # Start message dispatcher
+        self._message_queue = asyncio.Queue()
+        self._dispatcher_task = asyncio.create_task(self._message_dispatcher())
+        
+        self.logger.info("Real P2P transport started", port=self._extract_port_from_addr(self._listen_addr))
     
     def _parse_peer_address(self, peer_addr: str) -> UUID:
         """Parse peer address to extract peer ID."""
@@ -248,23 +291,54 @@ class LibP2PTransport(P2PTransport):
         return UUID(hash_obj.hexdigest())
     
     async def _establish_connection(self, peer_id: UUID, peer_addr: str) -> PeerInfo:
-        """Establish connection to a peer."""
-        # Simulate connection establishment
-        await asyncio.sleep(0.1)  # Connection time
-        
-        peer = PeerInfo(
-            peer_id=peer_id,
-            addresses=[peer_addr],
-            protocols={TransportProtocol.LIBP2P},
-            status=PeerStatus.CONNECTED,
-            last_seen=time.time(),
-            latency_ms=50.0  # Simulated latency
-        )
-        
-        # Store connection handle (simulated)
-        self._connections[peer_id] = {"address": peer_addr, "connected_at": time.time()}
-        
-        return peer
+        """Establish real TCP connection to a peer."""
+        try:
+            # Parse address to get host and port
+            host, port = self._parse_tcp_address(peer_addr)
+            
+            # Create TCP connection
+            start_time = time.time()
+            reader, writer = await asyncio.open_connection(host, port)
+            connection_time = (time.time() - start_time) * 1000
+            
+            # Send handshake
+            handshake = {
+                "node_id": str(self.node_id),
+                "protocol_version": "1.0",
+                "capabilities": ["federated_learning", "consensus"]
+            }
+            await self._send_message_direct(writer, "handshake", handshake)
+            
+            # Wait for handshake response
+            response = await self._receive_message_direct(reader)
+            if response["type"] != "handshake_ack":
+                raise ValueError("Invalid handshake response")
+            
+            peer = PeerInfo(
+                peer_id=peer_id,
+                addresses=[peer_addr],
+                protocols={TransportProtocol.LIBP2P},
+                status=PeerStatus.CONNECTED,
+                last_seen=time.time(),
+                latency_ms=connection_time
+            )
+            
+            # Store real connection
+            self._connections[peer_id] = {
+                "reader": reader,
+                "writer": writer,
+                "address": peer_addr,
+                "connected_at": time.time()
+            }
+            
+            # Start message handler for this connection
+            asyncio.create_task(self._handle_peer_messages(peer_id, reader))
+            
+            return peer
+            
+        except Exception as e:
+            self.logger.error("Failed to establish connection", peer_addr=peer_addr, error=str(e))
+            raise
     
     async def _disconnect_peer(self, peer_id: UUID) -> None:
         """Disconnect from a peer."""
@@ -272,12 +346,183 @@ class LibP2PTransport(P2PTransport):
             self._peers[peer_id].status = PeerStatus.DISCONNECTED
         
         if peer_id in self._connections:
+            connection = self._connections[peer_id]
+            
+            # Close connection if it has writer
+            if "writer" in connection:
+                writer = connection["writer"]
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    pass  # Ignore close errors
+            
             del self._connections[peer_id]
     
     async def _simulate_send_message(self, peer_id: UUID, message: NetworkMessage) -> None:
-        """Simulate sending a message."""
-        # In real implementation, this would serialize and send over libp2p
-        await asyncio.sleep(0.01)  # Simulate network delay
+        """Send message over real TCP connection."""
+        if peer_id not in self._connections:
+            raise ValueError(f"No connection to peer {peer_id}")
+        
+        connection = self._connections[peer_id]
+        writer = connection["writer"]
+        
+        # Serialize and send message
+        message_data = {
+            "id": str(message.message_id),
+            "sender": str(message.sender_id),
+            "recipient": str(message.recipient_id) if message.recipient_id else None,
+            "type": message.message_type,
+            "payload": message.payload,
+            "timestamp": message.timestamp,
+            "ttl": message.ttl
+        }
+        
+        await self._send_message_direct(writer, message.message_type, message_data)
+    
+    def _extract_port_from_addr(self, listen_addr: str) -> int:
+        """Extract port number from listen address."""
+        # Handle multiaddr format like /ip4/0.0.0.0/tcp/4001
+        if "/tcp/" in listen_addr:
+            return int(listen_addr.split("/tcp/")[1].split("/")[0])
+        # Handle simple port format
+        if ":" in listen_addr:
+            return int(listen_addr.split(":")[-1])
+        return 4001  # Default port
+    
+    def _parse_tcp_address(self, peer_addr: str) -> tuple[str, int]:
+        """Parse peer address to extract host and port."""
+        if "/ip4/" in peer_addr:
+            # Multiaddr format: /ip4/192.168.1.100/tcp/4001
+            parts = peer_addr.split("/")
+            host = parts[2]  # ip4 address
+            port = int(parts[4])  # tcp port
+            return host, port
+        elif ":" in peer_addr:
+            # Simple format: host:port
+            host, port_str = peer_addr.rsplit(":", 1)
+            return host, int(port_str)
+        else:
+            # Assume it's just a host, use default port
+            return peer_addr, 4001
+    
+    async def _handle_incoming_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        """Handle incoming TCP connection."""
+        peer_addr = writer.get_extra_info('peername')
+        self.logger.info("Incoming connection", peer_addr=peer_addr)
+        
+        try:
+            # Wait for handshake
+            handshake_msg = await self._receive_message_direct(reader)
+            if handshake_msg["type"] != "handshake":
+                raise ValueError("Expected handshake message")
+            
+            # Extract peer info from handshake
+            remote_node_id = UUID(handshake_msg["payload"]["node_id"])
+            
+            # Send handshake acknowledgment
+            ack_payload = {
+                "node_id": str(self.node_id),
+                "protocol_version": "1.0",
+                "status": "connected"
+            }
+            await self._send_message_direct(writer, "handshake_ack", ack_payload)
+            
+            # Create peer info
+            peer = PeerInfo(
+                peer_id=remote_node_id,
+                addresses=[f"{peer_addr[0]}:{peer_addr[1]}"],
+                protocols={TransportProtocol.LIBP2P},
+                status=PeerStatus.CONNECTED,
+                last_seen=time.time(),
+                latency_ms=10.0  # Local connection
+            )
+            
+            self._peers[remote_node_id] = peer
+            self._connections[remote_node_id] = {
+                "reader": reader,
+                "writer": writer,
+                "address": f"{peer_addr[0]}:{peer_addr[1]}",
+                "connected_at": time.time()
+            }
+            
+            # Handle messages from this peer
+            await self._handle_peer_messages(remote_node_id, reader)
+            
+        except Exception as e:
+            self.logger.error("Error handling incoming connection", error=str(e))
+            writer.close()
+            await writer.wait_closed()
+    
+    async def _handle_peer_messages(self, peer_id: UUID, reader: asyncio.StreamReader) -> None:
+        """Handle messages from a connected peer."""
+        try:
+            while self._running:
+                try:
+                    message = await asyncio.wait_for(self._receive_message_direct(reader), timeout=60.0)
+                    await self._message_queue.put((peer_id, message))
+                except asyncio.TimeoutError:
+                    # Send keep-alive
+                    if peer_id in self._connections:
+                        writer = self._connections[peer_id]["writer"]
+                        await self._send_message_direct(writer, "keepalive", {})
+                except asyncio.IncompleteReadError:
+                    # Connection closed
+                    break
+        except Exception as e:
+            self.logger.error("Error handling peer messages", peer_id=str(peer_id), error=str(e))
+        finally:
+            # Clean up connection
+            await self._disconnect_peer(peer_id)
+    
+    async def _message_dispatcher(self) -> None:
+        """Dispatch received messages to handlers."""
+        while self._running:
+            try:
+                peer_id, message = await self._message_queue.get()
+                
+                # Update peer last seen
+                if peer_id in self._peers:
+                    self._peers[peer_id].last_seen = time.time()
+                
+                # Route message to appropriate handler
+                message_type = message["type"]
+                if message_type in ["handshake", "handshake_ack", "keepalive"]:
+                    continue  # Already handled
+                
+                # Process other messages (placeholder for now)
+                self.logger.debug("Received message", peer_id=str(peer_id), type=message_type)
+                
+            except Exception as e:
+                self.logger.error("Message dispatch error", error=str(e))
+    
+    async def _send_message_direct(self, writer: asyncio.StreamWriter, msg_type: str, payload: dict) -> None:
+        """Send message directly over TCP connection."""
+        message = {
+            "type": msg_type,
+            "payload": payload,
+            "timestamp": time.time()
+        }
+        
+        # Serialize to JSON
+        data = json.dumps(message).encode('utf-8')
+        
+        # Send length-prefixed message
+        writer.write(struct.pack('>I', len(data)))
+        writer.write(data)
+        await writer.drain()
+    
+    async def _receive_message_direct(self, reader: asyncio.StreamReader) -> dict:
+        """Receive message directly from TCP connection."""
+        # Read message length
+        length_data = await reader.readexactly(4)
+        length = struct.unpack('>I', length_data)[0]
+        
+        # Read message data
+        data = await reader.readexactly(length)
+        message = json.loads(data.decode('utf-8'))
+        
+        return message
 
 
 class GRPCTransport(P2PTransport):
@@ -397,6 +642,24 @@ class P2PNetwork:
         # Background tasks
         self._discovery_task: Optional[asyncio.Task] = None
         self._maintenance_task: Optional[asyncio.Task] = None
+        
+        # Robustness features
+        self._circuit_breaker = CircuitBreaker(
+            f"network_{node_id}",
+            failure_threshold=5,
+            recovery_timeout=30.0
+        )
+        self._retry_manager = RetryManager(
+            max_attempts=3,
+            base_delay=1.0,
+            max_delay=30.0
+        )
+        self._failed_peers: Dict[UUID, float] = {}  # peer_id -> last_failure_time
+        self._blacklisted_peers: Set[UUID] = set()
+        
+        # Error tracking
+        self._error_counts: Dict[str, int] = {}
+        self._last_errors: List[str] = []
     
     async def start(self) -> None:
         """Start the P2P network layer."""
@@ -454,17 +717,40 @@ class P2PNetwork:
         self._all_peers.clear()
     
     async def connect_to_peer(self, peer_addr: str) -> PeerInfo:
-        """Connect to a peer using the best available transport."""
-        transport = self._get_primary_transport()
-        peer = await transport.connect_to_peer(peer_addr)
+        """Connect to a peer using the best available transport with retry logic."""
+        async def _connect():
+            try:
+                transport = self._get_primary_transport()
+                peer = await transport.connect_to_peer(peer_addr)
+                
+                # Update peer registry
+                self._all_peers[peer.peer_id] = peer
+                self._statistics.connections_total += 1
+                self._statistics.connections_active += 1
+                
+                # Clear failure history on successful connection
+                if peer.peer_id in self._failed_peers:
+                    del self._failed_peers[peer.peer_id]
+                self._blacklisted_peers.discard(peer.peer_id)
+                
+                self.logger.info("Connected to peer", peer_id=str(peer.peer_id), address=peer_addr)
+                return peer
+                
+            except Exception as e:
+                self._record_error("connect_to_peer", str(e))
+                self.logger.error("Failed to connect to peer", address=peer_addr, error=str(e))
+                raise
         
-        # Update peer registry
-        self._all_peers[peer.peer_id] = peer
-        self._statistics.connections_total += 1
-        self._statistics.connections_active += 1
-        
-        self.logger.info("Connected to peer", peer_id=str(peer.peer_id))
-        return peer
+        try:
+            return await self._circuit_breaker.call(
+                self._retry_manager.retry, _connect
+            )
+        except Exception as e:
+            # Record peer failure
+            peer_id = self._extract_peer_id_from_address(peer_addr)
+            if peer_id:
+                self._failed_peers[peer_id] = time.time()
+            raise NetworkConnectionError(f"Failed to connect to {peer_addr}: {e}") from e
     
     async def connect_to_peer_id(self, peer_id: UUID) -> PeerInfo:
         """Connect to a peer by ID (requires known address)."""
@@ -686,3 +972,53 @@ class P2PNetwork:
             except Exception as e:
                 self.logger.error("Maintenance loop error", error=str(e))
                 await asyncio.sleep(30)
+    
+    def _record_error(self, operation: str, error_msg: str):
+        """Record error for tracking and analysis."""
+        self._error_counts[operation] = self._error_counts.get(operation, 0) + 1
+        
+        error_entry = f"{time.time()}: {operation}: {error_msg}"
+        self._last_errors.append(error_entry)
+        
+        # Keep only last 50 errors
+        if len(self._last_errors) > 50:
+            self._last_errors.pop(0)
+    
+    def _extract_peer_id_from_address(self, peer_addr: str) -> Optional[UUID]:
+        """Extract peer ID from address if possible."""
+        # Simplified implementation - in real system would parse properly
+        try:
+            import hashlib
+            hash_obj = hashlib.md5(peer_addr.encode())
+            return UUID(hash_obj.hexdigest())
+        except Exception:
+            return None
+    
+    def _is_peer_blacklisted(self, peer_id: UUID) -> bool:
+        """Check if peer is blacklisted."""
+        if peer_id in self._blacklisted_peers:
+            return True
+        
+        # Check if peer has failed recently
+        if peer_id in self._failed_peers:
+            failure_time = self._failed_peers[peer_id]
+            if time.time() - failure_time < 300:  # 5 minute cooldown
+                return True
+        
+        return False
+    
+    def blacklist_peer(self, peer_id: UUID, reason: str):
+        """Blacklist a peer."""
+        self._blacklisted_peers.add(peer_id)
+        self._failed_peers[peer_id] = time.time()
+        self.logger.warning("Peer blacklisted", peer_id=str(peer_id), reason=reason)
+    
+    def get_error_statistics(self) -> Dict[str, Any]:
+        """Get network error statistics."""
+        return {
+            "error_counts": dict(self._error_counts),
+            "recent_errors": self._last_errors[-10:] if self._last_errors else [],
+            "failed_peers_count": len(self._failed_peers),
+            "blacklisted_peers_count": len(self._blacklisted_peers),
+            "circuit_breaker_status": self._circuit_breaker.get_status()
+        }

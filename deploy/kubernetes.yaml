@@ -1,0 +1,260 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agent-mesh
+  labels:
+    name: agent-mesh
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-mesh-config
+  namespace: agent-mesh
+data:
+  DATABASE_URL: "postgresql://mesh_user:mesh_pass@postgres:5432/agent_mesh"
+  LOG_LEVEL: "INFO"
+  PROMETHEUS_PORT: "9090"
+  HEALTH_CHECK_PORT: "8080"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-mesh-bootstrap
+  namespace: agent-mesh
+  labels:
+    app: agent-mesh
+    role: bootstrap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-mesh
+      role: bootstrap
+  template:
+    metadata:
+      labels:
+        app: agent-mesh
+        role: bootstrap
+    spec:
+      containers:
+      - name: agent-mesh
+        image: agent-mesh:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 4001
+          name: p2p
+        - containerPort: 8080
+          name: health
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: NODE_ROLE
+          value: "bootstrap"
+        - name: LISTEN_PORT
+          value: "4001"
+        - name: REGION
+          value: "us-east-1"
+        - name: BOOTSTRAP_PEERS
+          value: ""
+        envFrom:
+        - configMapRef:
+            name: agent-mesh-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: health
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: health
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-mesh-workers
+  namespace: agent-mesh
+  labels:
+    app: agent-mesh
+    role: worker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: agent-mesh
+      role: worker
+  template:
+    metadata:
+      labels:
+        app: agent-mesh
+        role: worker
+    spec:
+      containers:
+      - name: agent-mesh
+        image: agent-mesh:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 4001
+          name: p2p
+        - containerPort: 8080
+          name: health
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: NODE_ROLE
+          value: "worker"
+        - name: LISTEN_PORT
+          value: "4001"
+        - name: REGION
+          value: "us-east-1"
+        - name: BOOTSTRAP_PEERS
+          value: "agent-mesh-bootstrap:4001"
+        envFrom:
+        - configMapRef:
+            name: agent-mesh-config
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: health
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: health
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-mesh-bootstrap
+  namespace: agent-mesh
+  labels:
+    app: agent-mesh
+    role: bootstrap
+spec:
+  type: ClusterIP
+  ports:
+  - port: 4001
+    targetPort: p2p
+    protocol: TCP
+    name: p2p
+  - port: 8080
+    targetPort: health
+    protocol: TCP
+    name: health
+  - port: 9090
+    targetPort: metrics
+    protocol: TCP
+    name: metrics
+  selector:
+    app: agent-mesh
+    role: bootstrap
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-mesh-workers
+  namespace: agent-mesh
+  labels:
+    app: agent-mesh
+    role: worker
+spec:
+  type: ClusterIP
+  ports:
+  - port: 4001
+    targetPort: p2p
+    protocol: TCP
+    name: p2p
+  - port: 9090
+    targetPort: metrics
+    protocol: TCP
+    name: metrics
+  selector:
+    app: agent-mesh
+    role: worker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-mesh-external
+  namespace: agent-mesh
+  labels:
+    app: agent-mesh
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: health
+    protocol: TCP
+    name: http
+  - port: 4001
+    targetPort: p2p
+    protocol: TCP
+    name: p2p
+  selector:
+    app: agent-mesh
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: agent-mesh-workers-hpa
+  namespace: agent-mesh
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: agent-mesh-workers
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: agent-mesh-pdb
+  namespace: agent-mesh
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: agent-mesh
