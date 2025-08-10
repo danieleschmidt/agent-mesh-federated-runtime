@@ -1,17 +1,21 @@
 """Byzantine fault-tolerant consensus implementation.
 
 This module implements PBFT (Practical Byzantine Fault Tolerance) and Raft
-consensus algorithms for coordinating decisions across the Agent Mesh network.
+consensus algorithms for coordinating decisions across the Agent Mesh network
+with enhanced Byzantine failure detection and recovery mechanisms.
 """
 
 import asyncio
 import json
 import time
+import hashlib
+import hmac
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any, Set, Callable
+from typing import Dict, List, Optional, Any, Set, Callable, Tuple
 from uuid import UUID, uuid4
+from collections import defaultdict, Counter
 
 import structlog
 from pydantic import BaseModel, Field
@@ -45,6 +49,25 @@ class VoteType(Enum):
     REJECT = "reject"
 
 
+class PBFTPhase(Enum):
+    """PBFT consensus phases."""
+    
+    PRE_PREPARE = "pre_prepare"
+    PREPARE = "prepare"
+    COMMIT = "commit"
+    VIEW_CHANGE = "view_change"
+    NEW_VIEW = "new_view"
+
+
+class ByzantineFailureType(Enum):
+    """Types of Byzantine failures."""
+    
+    SILENT = "silent"              # Node stops responding
+    EQUIVOCATING = "equivocating"  # Node sends conflicting messages
+    ARBITRARY = "arbitrary"        # Node sends malicious messages
+    TIMING = "timing"              # Node responds too slowly/quickly
+
+
 @dataclass
 class ConsensusConfig:
     """Configuration for consensus algorithms."""
@@ -56,6 +79,12 @@ class ConsensusConfig:
     max_participants: int = 1000
     batch_size: int = 100  # Proposals per batch
     view_change_timeout: float = 60.0
+    # Enhanced Byzantine fault tolerance settings
+    byzantine_detection_enabled: bool = True
+    equivocation_detection: bool = True
+    message_integrity_checks: bool = True
+    reputation_threshold: float = 0.1  # Minimum reputation for participation
+    failure_detection_window: int = 10  # Number of rounds for failure detection
 
 
 class Proposal(BaseModel):
@@ -83,6 +112,44 @@ class Vote(BaseModel):
     view_number: int = 0
     signature: Optional[str] = None
     reason: Optional[str] = None
+
+
+class PBFTMessage(BaseModel):
+    """PBFT protocol message."""
+    
+    message_id: UUID = Field(default_factory=uuid4)
+    phase: PBFTPhase
+    proposal_id: UUID
+    sender_id: UUID
+    view_number: int
+    sequence_number: int
+    digest: str  # Hash of proposal data
+    timestamp: float = Field(default_factory=time.time)
+    signature: Optional[str] = None
+
+
+@dataclass
+class ByzantineDetection:
+    """Byzantine failure detection and tracking."""
+    
+    node_id: UUID
+    failure_type: ByzantineFailureType
+    detection_time: float
+    evidence: Dict[str, Any] = field(default_factory=dict)
+    confidence: float = 1.0  # Confidence in detection (0.0-1.0)
+    
+    
+@dataclass 
+class NodeReputation:
+    """Track node reputation for Byzantine detection."""
+    
+    node_id: UUID
+    reputation_score: float = 1.0  # Starts at 1.0, decreases with bad behavior
+    message_count: int = 0
+    equivocations: int = 0  # Count of conflicting messages
+    timeouts: int = 0       # Count of timeout failures
+    last_activity: float = field(default_factory=time.time)
+    is_suspected_byzantine: bool = False
 
 
 @dataclass
@@ -874,3 +941,486 @@ class ConsensusEngine:
         
         else:
             return {"error": f"Unknown request type: {request_type}"}
+
+
+class ByzantineDetector:
+    """Enhanced Byzantine failure detection system."""
+    
+    def __init__(self, config: ConsensusConfig):
+        self.config = config
+        self.logger = structlog.get_logger("byzantine_detector")
+        
+        # Reputation tracking
+        self.node_reputations: Dict[UUID, NodeReputation] = {}
+        
+        # Detection tracking
+        self.detections: List[ByzantineDetection] = []
+        self.message_history: Dict[UUID, List[PBFTMessage]] = defaultdict(list)
+        self.equivocation_tracker: Dict[UUID, Dict[str, Set[str]]] = defaultdict(lambda: defaultdict(set))
+        
+        # Timing analysis
+        self.message_timings: Dict[UUID, List[float]] = defaultdict(list)
+        
+    def track_message(self, message: PBFTMessage) -> None:
+        """Track a message for Byzantine detection."""
+        sender_id = message.sender_id
+        
+        # Update reputation tracking
+        if sender_id not in self.node_reputations:
+            self.node_reputations[sender_id] = NodeReputation(node_id=sender_id)
+        
+        reputation = self.node_reputations[sender_id]
+        reputation.message_count += 1
+        reputation.last_activity = time.time()
+        
+        # Store message history
+        self.message_history[sender_id].append(message)
+        
+        # Keep only recent history
+        max_history = self.config.failure_detection_window
+        if len(self.message_history[sender_id]) > max_history:
+            self.message_history[sender_id] = self.message_history[sender_id][-max_history:]
+        
+        # Check for equivocation
+        if self.config.equivocation_detection:
+            self._detect_equivocation(message)
+        
+        # Track message timing
+        self._track_message_timing(message)
+    
+    def _detect_equivocation(self, message: PBFTMessage) -> Optional[ByzantineDetection]:
+        """Detect if a node is sending conflicting messages (equivocation)."""
+        sender_id = message.sender_id
+        phase_key = f"{message.phase.value}_{message.proposal_id}_{message.view_number}"
+        
+        # Track unique digests for this phase/proposal/view combination
+        digests = self.equivocation_tracker[sender_id][phase_key]
+        
+        if message.digest in digests:
+            # Already seen this exact message, not equivocation
+            return None
+        
+        if len(digests) > 0:
+            # Node has already sent a different message for this phase/proposal/view
+            detection = ByzantineDetection(
+                node_id=sender_id,
+                failure_type=ByzantineFailureType.EQUIVOCATING,
+                detection_time=time.time(),
+                evidence={
+                    "phase": message.phase.value,
+                    "proposal_id": str(message.proposal_id),
+                    "view_number": message.view_number,
+                    "previous_digests": list(digests),
+                    "new_digest": message.digest
+                },
+                confidence=0.95
+            )
+            
+            self.detections.append(detection)
+            
+            # Update reputation
+            reputation = self.node_reputations[sender_id]
+            reputation.equivocations += 1
+            reputation.reputation_score *= 0.5  # Severe penalty for equivocation
+            reputation.is_suspected_byzantine = True
+            
+            self.logger.warning("Equivocation detected",
+                              node_id=str(sender_id),
+                              phase=message.phase.value,
+                              proposal_id=str(message.proposal_id))
+            
+            return detection
+        
+        # Add digest to tracking
+        digests.add(message.digest)
+        return None
+    
+    def _track_message_timing(self, message: PBFTMessage) -> None:
+        """Track message timing for timing attack detection."""
+        sender_id = message.sender_id
+        current_time = time.time()
+        
+        # Store timing
+        self.message_timings[sender_id].append(current_time)
+        
+        # Keep only recent timings
+        max_timings = 50
+        if len(self.message_timings[sender_id]) > max_timings:
+            self.message_timings[sender_id] = self.message_timings[sender_id][-max_timings:]
+    
+    def detect_silent_failures(self, active_nodes: Set[UUID], timeout_seconds: float) -> List[ByzantineDetection]:
+        """Detect nodes that have gone silent."""
+        detections = []
+        current_time = time.time()
+        
+        for node_id in active_nodes:
+            if node_id not in self.node_reputations:
+                continue
+                
+            reputation = self.node_reputations[node_id]
+            time_since_activity = current_time - reputation.last_activity
+            
+            if time_since_activity > timeout_seconds:
+                detection = ByzantineDetection(
+                    node_id=node_id,
+                    failure_type=ByzantineFailureType.SILENT,
+                    detection_time=current_time,
+                    evidence={
+                        "last_activity": reputation.last_activity,
+                        "timeout_duration": time_since_activity
+                    },
+                    confidence=min(time_since_activity / timeout_seconds, 1.0)
+                )
+                
+                detections.append(detection)
+                
+                # Update reputation
+                reputation.timeouts += 1
+                reputation.reputation_score *= 0.8  # Penalty for silence
+                if time_since_activity > timeout_seconds * 2:
+                    reputation.is_suspected_byzantine = True
+        
+        return detections
+    
+    def detect_timing_attacks(self, node_id: UUID) -> Optional[ByzantineDetection]:
+        """Detect timing-based Byzantine attacks."""
+        if node_id not in self.message_timings:
+            return None
+        
+        timings = self.message_timings[node_id]
+        if len(timings) < 10:  # Need sufficient data
+            return None
+        
+        # Analyze timing patterns
+        intervals = []
+        for i in range(1, len(timings)):
+            intervals.append(timings[i] - timings[i-1])
+        
+        if len(intervals) == 0:
+            return None
+        
+        # Check for suspicious patterns
+        avg_interval = sum(intervals) / len(intervals)
+        
+        # Very consistent timing (potential automation)
+        variance = sum((x - avg_interval) ** 2 for x in intervals) / len(intervals)
+        if variance < 0.001 and avg_interval < 1.0:  # Very low variance, very fast
+            detection = ByzantineDetection(
+                node_id=node_id,
+                failure_type=ByzantineFailureType.TIMING,
+                detection_time=time.time(),
+                evidence={
+                    "message_intervals": intervals[-10:],  # Last 10 intervals
+                    "average_interval": avg_interval,
+                    "variance": variance,
+                    "suspicious_pattern": "automated_responses"
+                },
+                confidence=0.7
+            )
+            
+            return detection
+        
+        return None
+    
+    def calculate_byzantine_tolerance(self, total_nodes: int) -> Tuple[int, bool]:
+        """Calculate Byzantine fault tolerance for given network size."""
+        # For PBFT: n >= 3f + 1, where f is max Byzantine nodes
+        # So f <= (n-1)/3
+        max_byzantine = (total_nodes - 1) // 3
+        
+        # Count currently suspected Byzantine nodes
+        suspected_count = sum(
+            1 for rep in self.node_reputations.values() 
+            if rep.is_suspected_byzantine
+        )
+        
+        is_safe = suspected_count <= max_byzantine
+        
+        self.logger.info("Byzantine tolerance analysis",
+                        total_nodes=total_nodes,
+                        max_byzantine_tolerated=max_byzantine,
+                        currently_suspected=suspected_count,
+                        network_safe=is_safe)
+        
+        return max_byzantine, is_safe
+    
+    def get_trusted_nodes(self, min_reputation: float = None) -> List[UUID]:
+        """Get list of nodes with good reputation."""
+        if min_reputation is None:
+            min_reputation = self.config.reputation_threshold
+        
+        trusted_nodes = []
+        for node_id, reputation in self.node_reputations.items():
+            if (reputation.reputation_score >= min_reputation and 
+                not reputation.is_suspected_byzantine):
+                trusted_nodes.append(node_id)
+        
+        return trusted_nodes
+    
+    def verify_message_integrity(self, message: PBFTMessage, expected_digest: str) -> bool:
+        """Verify message integrity using digest."""
+        if not self.config.message_integrity_checks:
+            return True
+        
+        # In real implementation, would verify cryptographic signature
+        # For now, just check digest matches
+        return message.digest == expected_digest
+    
+    def should_exclude_node(self, node_id: UUID) -> bool:
+        """Determine if a node should be excluded from consensus."""
+        if node_id not in self.node_reputations:
+            return False
+        
+        reputation = self.node_reputations[node_id]
+        
+        # Exclude if reputation is too low or suspected Byzantine
+        return (reputation.reputation_score < self.config.reputation_threshold or 
+                reputation.is_suspected_byzantine)
+    
+    def get_detection_summary(self) -> Dict[str, Any]:
+        """Get summary of Byzantine detection activity."""
+        detection_counts = Counter(d.failure_type for d in self.detections)
+        
+        return {
+            "total_detections": len(self.detections),
+            "detection_types": dict(detection_counts),
+            "nodes_tracked": len(self.node_reputations),
+            "suspected_byzantine_count": sum(
+                1 for rep in self.node_reputations.values() 
+                if rep.is_suspected_byzantine
+            ),
+            "recent_detections": [
+                {
+                    "node_id": str(d.node_id),
+                    "type": d.failure_type.value,
+                    "time": d.detection_time,
+                    "confidence": d.confidence
+                }
+                for d in self.detections[-10:]  # Last 10 detections
+            ]
+        }
+
+
+class EnhancedPBFTConsensus(PBFTConsensus):
+    """Enhanced PBFT with Byzantine detection capabilities."""
+    
+    def __init__(self, node_id: UUID, config: ConsensusConfig, network=None):
+        super().__init__(node_id, config, network)
+        
+        # Add Byzantine detection
+        self.byzantine_detector = ByzantineDetector(config)
+        
+        # Enhanced state tracking
+        self.view_changes: Dict[int, Set[UUID]] = defaultdict(set)
+        self.suspected_nodes: Set[UUID] = set()
+    
+    async def _broadcast_pre_prepare(self, proposal: Proposal) -> None:
+        """Enhanced pre-prepare with Byzantine detection."""
+        # Create message digest
+        message_data = {
+            "proposal_id": str(proposal.proposal_id),
+            "data": proposal.data,
+            "view_number": proposal.view_number,
+            "sequence_number": proposal.sequence_number
+        }
+        digest = hashlib.sha256(json.dumps(message_data, sort_keys=True).encode()).hexdigest()
+        
+        # Create PBFT message
+        pbft_message = PBFTMessage(
+            phase=PBFTPhase.PRE_PREPARE,
+            proposal_id=proposal.proposal_id,
+            sender_id=self.node_id,
+            view_number=self.view_number,
+            sequence_number=proposal.sequence_number,
+            digest=digest
+        )
+        
+        # Track our own message
+        self.byzantine_detector.track_message(pbft_message)
+        
+        # Broadcast to trusted nodes only
+        trusted_nodes = self.byzantine_detector.get_trusted_nodes()
+        
+        self.logger.info("Broadcasting pre-prepare to trusted nodes",
+                        proposal_id=str(proposal.proposal_id),
+                        trusted_node_count=len(trusted_nodes))
+        
+        # In real implementation, would send via network
+        # For now, just log the action
+    
+    def _handle_pbft_message(self, message: PBFTMessage, sender_id: UUID) -> bool:
+        """Enhanced PBFT message handling with Byzantine detection."""
+        
+        # Track message for Byzantine detection
+        self.byzantine_detector.track_message(message)
+        
+        # Check if sender should be excluded
+        if self.byzantine_detector.should_exclude_node(sender_id):
+            self.logger.warning("Ignoring message from suspected Byzantine node",
+                              sender_id=str(sender_id))
+            return False
+        
+        # Verify message integrity
+        # In real implementation, would verify cryptographic signatures
+        
+        # Process message based on phase
+        if message.phase == PBFTPhase.PREPARE:
+            return self._handle_prepare_message(message)
+        elif message.phase == PBFTPhase.COMMIT:
+            return self._handle_commit_message(message)
+        elif message.phase == PBFTPhase.VIEW_CHANGE:
+            return self._handle_view_change_message(message)
+        
+        return True
+    
+    def _handle_prepare_message(self, message: PBFTMessage) -> bool:
+        """Handle PREPARE phase message with Byzantine checks."""
+        proposal_id = message.proposal_id
+        sender_id = message.sender_id
+        
+        if proposal_id not in self._prepare_messages:
+            self._prepare_messages[proposal_id] = set()
+        
+        self._prepare_messages[proposal_id].add(sender_id)
+        
+        # Check if we have enough PREPARE messages from trusted nodes
+        trusted_nodes = self.byzantine_detector.get_trusted_nodes()
+        trusted_prepare_count = len(
+            self._prepare_messages[proposal_id].intersection(set(trusted_nodes))
+        )
+        
+        # Need 2f+1 PREPARE messages for PBFT
+        required_prepares = 2 * self._calculate_max_byzantine_nodes() + 1
+        
+        if trusted_prepare_count >= required_prepares:
+            self.logger.info("Sufficient PREPARE messages from trusted nodes",
+                           proposal_id=str(proposal_id),
+                           trusted_count=trusted_prepare_count)
+            return True
+        
+        return False
+    
+    def _handle_commit_message(self, message: PBFTMessage) -> bool:
+        """Handle COMMIT phase message with Byzantine checks."""
+        proposal_id = message.proposal_id
+        sender_id = message.sender_id
+        
+        if proposal_id not in self._commit_messages:
+            self._commit_messages[proposal_id] = set()
+        
+        self._commit_messages[proposal_id].add(sender_id)
+        
+        # Check if we have enough COMMIT messages from trusted nodes
+        trusted_nodes = self.byzantine_detector.get_trusted_nodes()
+        trusted_commit_count = len(
+            self._commit_messages[proposal_id].intersection(set(trusted_nodes))
+        )
+        
+        # Need 2f+1 COMMIT messages for PBFT
+        required_commits = 2 * self._calculate_max_byzantine_nodes() + 1
+        
+        if trusted_commit_count >= required_commits:
+            self.logger.info("Sufficient COMMIT messages from trusted nodes",
+                           proposal_id=str(proposal_id),
+                           trusted_count=trusted_commit_count)
+            
+            # Consensus reached - finalize proposal
+            self._finalize_proposal(proposal_id, True)
+            return True
+        
+        return False
+    
+    def _handle_view_change_message(self, message: PBFTMessage) -> bool:
+        """Handle VIEW_CHANGE message for Byzantine fault recovery."""
+        sender_id = message.sender_id
+        new_view = message.view_number
+        
+        if new_view <= self.view_number:
+            return False  # Ignore old view changes
+        
+        # Track view change votes
+        if new_view not in self.view_changes:
+            self.view_changes[new_view] = set()
+        
+        self.view_changes[new_view].add(sender_id)
+        
+        # Check if enough nodes want view change
+        trusted_nodes = self.byzantine_detector.get_trusted_nodes()
+        trusted_view_change_count = len(
+            self.view_changes[new_view].intersection(set(trusted_nodes))
+        )
+        
+        required_view_changes = self._calculate_max_byzantine_nodes() + 1
+        
+        if trusted_view_change_count >= required_view_changes:
+            self.logger.info("Initiating view change",
+                           old_view=self.view_number,
+                           new_view=new_view,
+                           supporter_count=trusted_view_change_count)
+            
+            self._change_view(new_view)
+            return True
+        
+        return False
+    
+    def _calculate_max_byzantine_nodes(self) -> int:
+        """Calculate maximum number of Byzantine nodes that can be tolerated."""
+        total_participants = len(self._participants)
+        return (total_participants - 1) // 3
+    
+    def _change_view(self, new_view: int) -> None:
+        """Change to new view (leader election)."""
+        self.view_number = new_view
+        
+        # Simple leader election: node with lowest ID in trusted set
+        trusted_nodes = self.byzantine_detector.get_trusted_nodes()
+        if trusted_nodes:
+            new_primary = min(trusted_nodes)
+            self.is_primary = (new_primary == self.node_id)
+            
+            self.logger.info("View changed",
+                           new_view=new_view,
+                           new_primary=str(new_primary),
+                           is_primary=self.is_primary)
+    
+    def _finalize_proposal(self, proposal_id: UUID, accepted: bool) -> None:
+        """Finalize a consensus proposal."""
+        if proposal_id not in self._proposal_futures:
+            return
+        
+        proposal = self._active_proposals.get(proposal_id)
+        if not proposal:
+            return
+        
+        result = ConsensusResult(
+            proposal_id=proposal_id,
+            accepted=accepted,
+            value=proposal.data if accepted else None,
+            participants=self._prepare_messages.get(proposal_id, set()) | 
+                       self._commit_messages.get(proposal_id, set())
+        )
+        
+        # Complete the future
+        future = self._proposal_futures[proposal_id]
+        if not future.done():
+            future.set_result(result)
+        
+        # Cleanup
+        self._cleanup_proposal(proposal_id)
+    
+    def _cleanup_proposal(self, proposal_id: UUID) -> None:
+        """Clean up proposal state after completion."""
+        self._active_proposals.pop(proposal_id, None)
+        self._proposal_votes.pop(proposal_id, None)
+        self._prepare_messages.pop(proposal_id, None)
+        self._commit_messages.pop(proposal_id, None)
+        self._proposal_futures.pop(proposal_id, None)
+        
+        # Cancel timeout task
+        if proposal_id in self._timeout_tasks:
+            self._timeout_tasks[proposal_id].cancel()
+            del self._timeout_tasks[proposal_id]
+    
+    def get_byzantine_detection_summary(self) -> Dict[str, Any]:
+        """Get summary of Byzantine detection activity."""
+        return self.byzantine_detector.get_detection_summary()

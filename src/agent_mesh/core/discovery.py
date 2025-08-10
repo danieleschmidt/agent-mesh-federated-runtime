@@ -2,6 +2,7 @@
 
 Implements multiple peer discovery strategies including mDNS, DHT,
 bootstrap servers, and gossip protocols for automatic peer finding.
+Enhanced with network partition detection and recovery mechanisms.
 """
 
 import asyncio
@@ -10,10 +11,11 @@ import random
 import socket
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Set, Callable
+from typing import Dict, List, Optional, Set, Callable, Tuple
 from uuid import UUID
+from collections import defaultdict, deque
 
 import structlog
 
@@ -467,11 +469,178 @@ class GossipDiscovery(PeerDiscovery):
                 self.logger.warning("Invalid peer data in gossip", error=str(e))
 
 
+@dataclass
+class NetworkPartition:
+    """Represents a detected network partition."""
+    partition_id: str
+    nodes: Set[UUID]
+    detection_time: float
+    last_contact: Dict[UUID, float] = field(default_factory=dict)
+    is_active: bool = True
+
+
+class PartitionDetector:
+    """
+    Network partition detection and recovery system.
+    
+    Monitors connectivity patterns and detects when the network
+    becomes partitioned, implementing recovery strategies.
+    """
+    
+    def __init__(self, node_id: UUID, detection_threshold: float = 30.0):
+        self.node_id = node_id
+        self.detection_threshold = detection_threshold
+        self.logger = structlog.get_logger("partition_detector", node_id=str(node_id))
+        
+        # Partition tracking
+        self.partitions: Dict[str, NetworkPartition] = {}
+        self.peer_connectivity: Dict[UUID, deque] = defaultdict(lambda: deque(maxlen=10))
+        self.last_contact: Dict[UUID, float] = {}
+        
+        # Detection state
+        self._detection_active = False
+        self._detection_task: Optional[asyncio.Task] = None
+        self._recovery_callbacks: List[Callable[[NetworkPartition], None]] = []
+    
+    async def start_detection(self) -> None:
+        """Start partition detection monitoring."""
+        self.logger.info("Starting network partition detection")
+        self._detection_active = True
+        self._detection_task = asyncio.create_task(self._detection_loop())
+    
+    async def stop_detection(self) -> None:
+        """Stop partition detection monitoring."""
+        self.logger.info("Stopping network partition detection")
+        self._detection_active = False
+        
+        if self._detection_task:
+            self._detection_task.cancel()
+            try:
+                await self._detection_task
+            except asyncio.CancelledError:
+                pass
+    
+    def record_peer_contact(self, peer_id: UUID, success: bool) -> None:
+        """Record contact attempt result for a peer."""
+        current_time = time.time()
+        
+        # Record connectivity event
+        self.peer_connectivity[peer_id].append((current_time, success))
+        
+        # Update last successful contact
+        if success:
+            self.last_contact[peer_id] = current_time
+    
+    def get_unreachable_peers(self) -> List[UUID]:
+        """Get list of peers that appear unreachable."""
+        current_time = time.time()
+        unreachable = []
+        
+        for peer_id, last_seen in self.last_contact.items():
+            if current_time - last_seen > self.detection_threshold:
+                unreachable.append(peer_id)
+        
+        return unreachable
+    
+    def detect_partition(self, connected_peers: Set[UUID], all_known_peers: Set[UUID]) -> Optional[NetworkPartition]:
+        """Detect if a network partition has occurred."""
+        if not all_known_peers:
+            return None
+        
+        # Calculate connectivity ratio
+        connectivity_ratio = len(connected_peers) / len(all_known_peers)
+        
+        # If we can reach less than half the network, suspect partition
+        if connectivity_ratio < 0.5 and len(all_known_peers) >= 3:
+            unreachable_peers = all_known_peers - connected_peers
+            
+            # Create partition record
+            partition_id = f"partition_{int(time.time())}"
+            partition = NetworkPartition(
+                partition_id=partition_id,
+                nodes=unreachable_peers,
+                detection_time=time.time()
+            )
+            
+            # Update last contact times
+            for peer_id in unreachable_peers:
+                partition.last_contact[peer_id] = self.last_contact.get(peer_id, 0)
+            
+            self.logger.warning(
+                "Network partition detected",
+                partition_id=partition_id,
+                unreachable_count=len(unreachable_peers),
+                connectivity_ratio=connectivity_ratio
+            )
+            
+            return partition
+        
+        return None
+    
+    def add_recovery_callback(self, callback: Callable[[NetworkPartition], None]) -> None:
+        """Add callback for partition recovery events."""
+        self._recovery_callbacks.append(callback)
+    
+    async def _detection_loop(self) -> None:
+        """Main partition detection loop."""
+        while self._detection_active:
+            try:
+                # Check for partition recovery
+                await self._check_partition_recovery()
+                
+                # Sleep before next check
+                await asyncio.sleep(10)  # Check every 10 seconds
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.error("Partition detection loop error", error=str(e))
+                await asyncio.sleep(30)
+    
+    async def _check_partition_recovery(self) -> None:
+        """Check if any partitions have recovered."""
+        current_time = time.time()
+        recovered_partitions = []
+        
+        for partition_id, partition in self.partitions.items():
+            if not partition.is_active:
+                continue
+            
+            # Check if previously unreachable nodes are now reachable
+            recovered_nodes = set()
+            for node_id in partition.nodes:
+                if node_id in self.last_contact:
+                    # Node is reachable if contacted recently
+                    if current_time - self.last_contact[node_id] < self.detection_threshold:
+                        recovered_nodes.add(node_id)
+            
+            # If significant portion recovered, consider partition healed
+            if len(recovered_nodes) >= len(partition.nodes) * 0.7:
+                partition.is_active = False
+                recovered_partitions.append(partition)
+                
+                self.logger.info(
+                    "Network partition recovered",
+                    partition_id=partition_id,
+                    recovered_nodes=len(recovered_nodes),
+                    duration=current_time - partition.detection_time
+                )
+        
+        # Notify recovery callbacks
+        for partition in recovered_partitions:
+            for callback in self._recovery_callbacks:
+                try:
+                    callback(partition)
+                except Exception as e:
+                    self.logger.error("Recovery callback failed", error=str(e))
+
+
 class MultiDiscovery:
     """
-    Multi-method peer discovery coordinator.
+    Multi-method peer discovery coordinator with partition detection.
     
-    Combines multiple discovery methods for robust peer finding.
+    Combines multiple discovery methods for robust peer finding
+    and includes network partition detection and recovery.
     """
     
     def __init__(self, config: DiscoveryConfig, node_id: UUID, network_manager=None):
@@ -483,6 +652,13 @@ class MultiDiscovery:
         self._discoveries: List[PeerDiscovery] = []
         self._all_peers: Dict[UUID, PeerInfo] = {}
         self._peer_callbacks: List[Callable[[PeerInfo], None]] = []
+        
+        # Partition detection
+        self.partition_detector = PartitionDetector(
+            node_id=node_id,
+            detection_threshold=config.discovery_interval * 2
+        )
+        self._partition_callbacks: List[Callable[[NetworkPartition], None]] = []
         
         # Initialize discovery methods
         self._init_discovery_methods()
@@ -501,9 +677,16 @@ class MultiDiscovery:
         self.logger.info("Initialized discovery methods", count=len(self._discoveries))
     
     async def start(self) -> None:
-        """Start all discovery methods."""
-        self.logger.info("Starting peer discovery")
+        """Start all discovery methods and partition detection."""
+        self.logger.info("Starting peer discovery with partition detection")
         
+        # Start partition detection
+        await self.partition_detector.start_detection()
+        
+        # Setup partition recovery callback
+        self.partition_detector.add_recovery_callback(self._handle_partition_recovery)
+        
+        # Start discovery methods
         for discovery in self._discoveries:
             try:
                 await discovery.start()
@@ -512,9 +695,13 @@ class MultiDiscovery:
                                 discovery=discovery.__class__.__name__, error=str(e))
     
     async def stop(self) -> None:
-        """Stop all discovery methods."""
-        self.logger.info("Stopping peer discovery")
+        """Stop all discovery methods and partition detection."""
+        self.logger.info("Stopping peer discovery and partition detection")
         
+        # Stop partition detection
+        await self.partition_detector.stop_detection()
+        
+        # Stop discovery methods
         for discovery in self._discoveries:
             try:
                 await discovery.stop()
@@ -523,7 +710,7 @@ class MultiDiscovery:
                                 discovery=discovery.__class__.__name__, error=str(e))
     
     async def discover_peers(self) -> List[PeerInfo]:
-        """Discover peers using all methods."""
+        """Discover peers using all methods with partition detection."""
         all_discovered = []
         
         for discovery in self._discoveries:
@@ -533,12 +720,20 @@ class MultiDiscovery:
             except Exception as e:
                 self.logger.error("Discovery method failed",
                                 discovery=discovery.__class__.__name__, error=str(e))
+                
+                # Record failed discovery attempts for partition detection
+                if hasattr(discovery, '_known_peers'):
+                    for peer_id in discovery._known_peers.keys():
+                        self.partition_detector.record_peer_contact(peer_id, False)
         
         # Deduplicate and update registry
         unique_peers = {}
         for peer in all_discovered:
             if peer.peer_id not in unique_peers:
                 unique_peers[peer.peer_id] = peer
+                
+                # Record successful peer contact
+                self.partition_detector.record_peer_contact(peer.peer_id, True)
                 
                 # Notify callbacks about new peers
                 if peer.peer_id not in self._all_peers:
@@ -550,6 +745,9 @@ class MultiDiscovery:
         
         # Update registry
         self._all_peers.update(unique_peers)
+        
+        # Check for network partitions
+        await self._check_for_partitions()
         
         return list(unique_peers.values())
     
@@ -573,3 +771,101 @@ class MultiDiscovery:
     def get_peer_count(self) -> int:
         """Get total number of discovered peers."""
         return len(self._all_peers)
+    
+    def add_partition_callback(self, callback: Callable[[NetworkPartition], None]) -> None:
+        """Add callback for partition detection events."""
+        self._partition_callbacks.append(callback)
+    
+    def get_partition_status(self) -> Dict[str, any]:
+        """Get current partition detection status."""
+        unreachable = self.partition_detector.get_unreachable_peers()
+        
+        return {
+            "total_peers": len(self._all_peers),
+            "unreachable_peers": len(unreachable),
+            "active_partitions": len([p for p in self.partition_detector.partitions.values() if p.is_active]),
+            "partition_threshold": self.partition_detector.detection_threshold,
+            "unreachable_peer_ids": [str(pid) for pid in unreachable]
+        }
+    
+    async def _check_for_partitions(self) -> None:
+        """Check for network partitions and handle detection."""
+        try:
+            # Get connected peers from network manager
+            connected_peers = set()
+            if self.network_manager:
+                try:
+                    connected_peer_list = await self.network_manager.get_connected_peers()
+                    connected_peers = {peer.peer_id for peer in connected_peer_list}
+                except Exception as e:
+                    self.logger.debug("Failed to get connected peers", error=str(e))
+            
+            # All known peers
+            all_known_peers = set(self._all_peers.keys())
+            
+            # Detect partition
+            partition = self.partition_detector.detect_partition(connected_peers, all_known_peers)
+            
+            if partition:
+                # Store the partition
+                self.partition_detector.partitions[partition.partition_id] = partition
+                
+                # Notify callbacks
+                for callback in self._partition_callbacks:
+                    try:
+                        callback(partition)
+                    except Exception as e:
+                        self.logger.error("Partition callback failed", error=str(e))
+                
+                # Trigger recovery actions
+                await self._trigger_partition_recovery(partition)
+                
+        except Exception as e:
+            self.logger.error("Partition check failed", error=str(e))
+    
+    async def _trigger_partition_recovery(self, partition: NetworkPartition) -> None:
+        """Trigger partition recovery actions."""
+        self.logger.info(
+            "Triggering partition recovery actions",
+            partition_id=partition.partition_id,
+            affected_nodes=len(partition.nodes)
+        )
+        
+        # Recovery strategy: Try alternative discovery methods
+        # 1. Increase discovery frequency temporarily
+        original_interval = self.config.discovery_interval
+        self.config.discovery_interval = max(5, original_interval // 2)
+        
+        # 2. Try to reconnect to bootstrap nodes if available
+        if DiscoveryMethod.BOOTSTRAP in self.config.methods:
+            for discovery in self._discoveries:
+                if isinstance(discovery, BootstrapDiscovery):
+                    try:
+                        await discovery.discover_peers()
+                    except Exception as e:
+                        self.logger.debug("Bootstrap recovery failed", error=str(e))
+        
+        # 3. Schedule restoration of normal interval
+        asyncio.create_task(self._restore_discovery_interval(original_interval, 300))  # 5 minutes
+    
+    async def _restore_discovery_interval(self, original_interval: int, delay: int) -> None:
+        """Restore original discovery interval after delay."""
+        await asyncio.sleep(delay)
+        self.config.discovery_interval = original_interval
+        self.logger.info("Restored normal discovery interval", interval=original_interval)
+    
+    def _handle_partition_recovery(self, partition: NetworkPartition) -> None:
+        """Handle partition recovery notification."""
+        self.logger.info(
+            "Partition recovery detected",
+            partition_id=partition.partition_id,
+            recovered_nodes=len(partition.nodes),
+            duration=time.time() - partition.detection_time
+        )
+        
+        # Update peer status for recovered nodes
+        for node_id in partition.nodes:
+            if node_id in self._all_peers:
+                peer = self._all_peers[node_id]
+                peer.status = PeerStatus.CONNECTED
+                peer.last_seen = time.time()
