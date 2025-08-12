@@ -1,0 +1,42 @@
+{
+  "app": {
+    "name": "agent-mesh",
+    "version": "1.0.0",
+    "environment": "staging"
+  },
+  "network": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "p2p_port": 4001,
+    "max_connections": 100
+  },
+  "security": {
+    "encryption_enabled": true,
+    "tls_enabled": true,
+    "key_rotation_interval": 3600
+  },
+  "consensus": {
+    "algorithm": "raft",
+    "election_timeout": 5000,
+    "heartbeat_interval": 1000
+  },
+  "federated_learning": {
+    "max_participants": 1000,
+    "round_timeout": 300,
+    "min_participants": 3
+  },
+  "monitoring": {
+    "enabled": true,
+    "prometheus_port": 9090,
+    "health_check_interval": 30
+  },
+  "logging": {
+    "level": "DEBUG",
+    "format": "json",
+    "file": "/app/logs/agent-mesh.log"
+  },
+  "database": {
+    "type": "sqlite",
+    "path": "/app/data/agent-mesh.db"
+  }
+}
