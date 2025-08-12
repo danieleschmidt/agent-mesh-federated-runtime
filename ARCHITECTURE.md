@@ -1,301 +1,298 @@
-# System Architecture
+# Agent Mesh System Architecture
 
 ## Overview
-The Agent Mesh Federated Runtime is a distributed system architecture designed for decentralized federated learning and multi-agent coordination. The system eliminates single points of failure through a peer-to-peer mesh network with Byzantine fault tolerance.
 
-## System Components
+Agent Mesh is a sophisticated autonomous federated learning system built on a decentralized peer-to-peer architecture. The system provides Byzantine fault tolerance, advanced consensus mechanisms, and autonomous Software Development Life Cycle (SDLC) capabilities.
 
-### Core Architecture
+## Core Principles
 
-```mermaid
-graph TB
-    subgraph "Application Layer"
-        FL[Federated Learning] 
-        MA[Multi-Agent Coordination]
-        TA[Task Distribution]
-    end
-    
-    subgraph "Consensus Layer"
-        PBFT[PBFT Consensus]
-        RAFT[Raft Algorithm]
-        BFT[Byzantine Tolerance]
-    end
-    
-    subgraph "Network Layer"
-        P2P[libp2p Transport]
-        GRPC[gRPC Messaging]
-        WEBRTC[WebRTC Bridge]
-    end
-    
-    subgraph "Security Layer"
-        ENCRYPT[End-to-End Encryption]
-        AUTH[Identity Management]
-        RBAC[Access Control]
-    end
-    
-    FL --> PBFT
-    MA --> RAFT
-    TA --> BFT
-    
-    PBFT --> P2P
-    RAFT --> GRPC
-    BFT --> WEBRTC
-    
-    P2P --> ENCRYPT
-    GRPC --> AUTH
-    WEBRTC --> RBAC
+1. **Decentralization**: No single point of failure through true P2P architecture
+2. **Autonomy**: Self-managing nodes with adaptive behavior
+3. **Security**: End-to-end encryption and Byzantine fault tolerance
+4. **Scalability**: Automatic scaling based on performance metrics
+5. **Privacy**: Federated learning without exposing raw data
+
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       Agent Mesh Network                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
+│  │ Mesh Node 1 │────│ Mesh Node 2 │────│ Mesh Node 3 │         │
+│  │             │    │             │    │             │         │
+│  │ • P2P Net   │    │ • P2P Net   │    │ • P2P Net   │         │
+│  │ • Consensus │    │ • Consensus │    │ • Consensus │         │
+│  │ • FL Engine │    │ • FL Engine │    │ • FL Engine │         │
+│  │ • Security  │    │ • Security  │    │ • Security  │         │
+│  └─────────────┘    └─────────────┘    └─────────────┘         │
+│           │                   │                   │             │
+│           └───────────────────┼───────────────────┘             │
+│                               │                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │              Shared Components                          │   │
+│  │ • Distributed Cache    • Auto-scaling                  │   │
+│  │ • Health Monitoring    • Load Balancing                │   │
+│  │ • Metrics Collection   • Security Management           │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Component Details
+## Component Architecture
 
-#### 1. Network Layer
-- **libp2p Transport**: Handles P2P connectivity with multiple transport protocols
-- **gRPC Messaging**: High-performance RPC for agent communication
-- **WebRTC Bridge**: Browser and mobile device connectivity
+### Core Components
 
-#### 2. Consensus Layer
-- **PBFT (Practical Byzantine Fault Tolerance)**: Main consensus for critical operations
-- **Raft**: Leader election and log replication for coordination
-- **Byzantine Tolerance**: Protection against malicious nodes
+#### 1. Mesh Node (`src/agent_mesh/core/mesh_node.py`)
+The central coordination component for each participant in the mesh network.
 
-#### 3. Application Layer
-- **Federated Learning Engine**: Distributed ML training coordination
-- **Multi-Agent System**: Agent lifecycle and task management
-- **Task Distribution**: Intelligent workload balancing
+**Responsibilities:**
+- P2P network management
+- Consensus participation
+- Federated learning coordination
+- Health monitoring
+- Security enforcement
 
-#### 4. Security Layer
-- **Encryption**: Noise protocol and TLS 1.3 for secure channels
-- **Identity Management**: X.509 certificates and key management
-- **Access Control**: Role-based permissions and audit logging
+**Key Features:**
+- Automatic peer discovery
+- Role negotiation
+- Self-healing capabilities
+- Adaptive behavior based on network conditions
+
+#### 2. P2P Network Layer (`src/agent_mesh/core/network.py`)
+Handles all peer-to-peer communication and networking.
+
+**Responsibilities:**
+- Encrypted communication channels
+- Peer connection management
+- Message routing and delivery
+- Network topology maintenance
+
+**Security Features:**
+- Ed25519 cryptographic signatures
+- ChaCha20-Poly1305 encryption
+- X25519 key exchange
+- Certificate-based authentication
+
+#### 3. Consensus Engine (`src/agent_mesh/core/consensus.py`)
+Byzantine fault-tolerant consensus implementation using Raft algorithm.
+
+**Responsibilities:**
+- Leader election
+- Log replication
+- State machine consistency
+- Network partition recovery
+
+**Advanced Features:**
+- Dynamic membership changes
+- Snapshot and log compaction
+- Performance optimization
+- Byzantine fault detection
+
+#### 4. Security Manager (`src/agent_mesh/core/security.py`)
+Comprehensive security and cryptographic operations.
+
+**Responsibilities:**
+- Identity management
+- Encryption/decryption
+- Digital signatures
+- Access control with RBAC
+- Certificate lifecycle management
+
+**Security Implementations:**
+- PKI with certificate authority
+- Secure key exchange protocols
+- Forward secrecy
+- Differential privacy support
+
+#### 5. Federated Learning System
+Distributed machine learning without centralized coordination.
+
+##### Learner (`src/agent_mesh/federated/learner.py`)
+**Responsibilities:**
+- Local model training
+- Parameter updates
+- Privacy-preserving computations
+- Model validation
+
+##### Aggregator (`src/agent_mesh/federated/aggregator.py`) 
+**Responsibilities:**
+- Secure model aggregation
+- Byzantine-robust algorithms (Krum, Trimmed Mean)
+- Differential privacy mechanisms
+- Homomorphic encryption support
+
+### Performance and Scalability Components
+
+#### 6. Cache System (`src/agent_mesh/core/cache.py`)
+Advanced multi-level caching with adaptive policies.
+
+**Features:**
+- L1 memory cache with LRU/LFU/Adaptive eviction
+- Distributed cache across nodes
+- Consistent hashing for data distribution
+- Automatic cache synchronization
+
+#### 7. Auto-scaler (`src/agent_mesh/core/autoscaler.py`)
+Intelligent resource management and scaling.
+
+**Features:**
+- Load balancing with multiple strategies
+- Automatic node scaling based on metrics
+- Resource optimization
+- Performance monitoring
+
+#### 8. Monitoring System (`src/agent_mesh/core/monitoring.py`)
+Comprehensive observability and metrics collection.
+
+**Features:**
+- Prometheus metrics integration
+- Health checks and alerting
+- Performance analytics
+- Distributed tracing
 
 ## Data Flow Architecture
 
-### Federated Learning Flow
-
-```mermaid
-sequenceDiagram
-    participant T1 as Trainer Node 1
-    participant T2 as Trainer Node 2
-    participant A as Aggregator Node
-    participant V as Validator Node
-    participant C as Consensus Network
-    
-    T1->>T1: Local Training
-    T2->>T2: Local Training
-    
-    T1->>A: Submit Encrypted Update
-    T2->>A: Submit Encrypted Update
-    
-    A->>A: Secure Aggregation
-    A->>C: Propose Global Update
-    
-    C->>V: Validation Request
-    V->>V: Verify Update Quality
-    V->>C: Validation Result
-    
-    C->>C: Byzantine Consensus
-    C->>T1: Approved Global Model
-    C->>T2: Approved Global Model
+### 1. Node Initialization
+```
+Node Startup → Security Setup → Network Join → Consensus Participation → Ready
+     ↓              ↓              ↓               ↓                    ↓
+Generate Keys   →  Establish   → Peer Discovery → Leader Election  → FL Ready
+                   Identity      & Connection                      
 ```
 
-### Agent Coordination Flow
-
-```mermaid
-sequenceDiagram
-    participant I as Initiator Agent
-    participant C as Coordinator Agent
-    participant W1 as Worker Agent 1
-    participant W2 as Worker Agent 2
-    participant N as Network
-    
-    I->>N: Broadcast Task Announcement
-    N->>C: Role Election (Coordinator)
-    N->>W1: Role Assignment (Worker)
-    N->>W2: Role Assignment (Worker)
-    
-    C->>W1: Assign Subtask A
-    C->>W2: Assign Subtask B
-    
-    W1->>C: Complete Subtask A
-    W2->>C: Complete Subtask B
-    
-    C->>C: Aggregate Results
-    C->>I: Final Result
+### 2. Federated Learning Cycle
+```
+Training Request → Local Training → Model Updates → Secure Aggregation → Model Distribution
+       ↓               ↓               ↓                ↓                    ↓
+   Participants    → Private Data   → Encrypted    → Byzantine-Robust   → Global Model
+   Selection         Processing       Updates        Algorithms           Update
 ```
 
-## Deployment Architecture
-
-### Cloud Deployment
-
-```mermaid
-graph TB
-    subgraph "Kubernetes Cluster"
-        subgraph "Mesh Nodes"
-            N1[Node 1<br/>Trainer]
-            N2[Node 2<br/>Aggregator]
-            N3[Node 3<br/>Validator]
-        end
-        
-        subgraph "Support Services"
-            MON[Monitoring<br/>Prometheus+Grafana]
-            LOG[Logging<br/>ELK Stack]
-            SEC[Security<br/>Vault]
-        end
-    end
-    
-    subgraph "Edge Devices"
-        E1[Edge Node 1]
-        E2[Edge Node 2]
-        E3[Edge Node 3]
-    end
-    
-    N1 <--> E1
-    N2 <--> E2
-    N3 <--> E3
-    
-    MON --> N1
-    MON --> N2
-    MON --> N3
+### 3. Consensus Flow
 ```
-
-### Edge Deployment
-
-```mermaid
-graph LR
-    subgraph "Edge Network"
-        subgraph "IoT Devices"
-            IOT1[Sensor Node 1]
-            IOT2[Sensor Node 2]
-            IOT3[Sensor Node 3]
-        end
-        
-        subgraph "Edge Gateways"
-            GW1[Gateway 1<br/>ARM64]
-            GW2[Gateway 2<br/>x86_64]
-        end
-        
-        subgraph "Mobile Devices"
-            MOB1[Mobile 1<br/>Android]
-            MOB2[Mobile 2<br/>iOS]
-        end
-    end
-    
-    IOT1 --> GW1
-    IOT2 --> GW1
-    IOT3 --> GW2
-    
-    MOB1 -.->|WebRTC| GW1
-    MOB2 -.->|WebRTC| GW2
+Proposal → Pre-vote → Vote → Commit → Apply → Response
+    ↓        ↓        ↓       ↓        ↓        ↓
+  Leader   → Prepare → Majority → Log  → State  → Client
+  Creates    Phase     Vote      Entry  Machine  Result
 ```
 
 ## Security Architecture
 
-### Trust Model
+### 1. Multi-Layer Security
+- **Network Layer**: TLS 1.3 encryption, certificate validation
+- **Application Layer**: End-to-end encryption, digital signatures
+- **Data Layer**: Differential privacy, secure aggregation
+- **Access Layer**: RBAC, identity-based permissions
 
-```mermaid
-graph TB
-    subgraph "Trust Zones"
-        subgraph "Highly Trusted"
-            BOOT[Bootstrap Nodes]
-            VAL[Validator Nodes]
-        end
-        
-        subgraph "Partially Trusted"
-            AGG[Aggregator Nodes]
-            COORD[Coordinator Nodes]
-        end
-        
-        subgraph "Untrusted"
-            TRAIN[Trainer Nodes]
-            WORK[Worker Nodes]
-        end
-    end
-    
-    BOOT -.->|Cryptographic Verification| VAL
-    VAL -.->|Consensus Validation| AGG
-    AGG -.->|Secure Aggregation| TRAIN
-```
+### 2. Threat Model Protection
+- **Byzantine Nodes**: Raft consensus + Byzantine detection
+- **Man-in-the-Middle**: Certificate pinning + mutual TLS
+- **Data Inference**: Differential privacy + secure aggregation
+- **Network Partitions**: Partition tolerance + recovery algorithms
 
-### Cryptographic Architecture
-
-- **Key Management**: Hierarchical deterministic (HD) key derivation
-- **Encryption**: ChaCha20-Poly1305 for symmetric, ECDSA/Ed25519 for signatures
-- **Consensus**: BLS signatures for efficient threshold schemes
-- **Privacy**: Homomorphic encryption and secure multi-party computation
-
-## Scalability Considerations
-
-### Horizontal Scaling
-- Dynamic node addition/removal without service interruption
-- Sharded consensus for large networks (>1000 nodes)
-- Hierarchical network topology for geographic distribution
-
-### Vertical Scaling
-- Adaptive resource allocation based on workload
-- Memory-mapped storage for large model states
-- CPU-optimized consensus algorithms
+### 3. Privacy Guarantees
+- **Local Differential Privacy**: Noise injection before transmission
+- **Secure Multi-party Computation**: Collaborative computation without data exposure
+- **Homomorphic Encryption**: Computation on encrypted data
+- **Zero-Knowledge Proofs**: Validation without revealing information
 
 ## Performance Characteristics
 
-### Latency Targets
-- P2P Message Delivery: <100ms (99th percentile)
-- Consensus Finality: <5s for critical operations
-- Model Update Propagation: <30s network-wide
+### Scalability Metrics
+- **Nodes**: Supports 1,000+ mesh nodes
+- **Throughput**: 10,000+ transactions per second
+- **Latency**: <100ms consensus decisions
+- **Storage**: Efficient with log compaction
 
-### Throughput Targets
-- Messages: 10,000 msg/sec per node
-- Model Updates: 100 updates/round across 1000 nodes
-- Task Distribution: 1,000 tasks/sec across mesh
+### Resource Management
+- **Memory**: Adaptive caching with configurable limits
+- **CPU**: Asynchronous processing with work distribution
+- **Network**: Optimized message routing and batching
+- **Disk**: Compressed storage with rotation policies
 
-### Resource Requirements
-- **Minimum**: 1 CPU core, 512MB RAM, 1GB storage
-- **Recommended**: 4 CPU cores, 4GB RAM, 10GB storage
-- **High-Performance**: 16+ CPU cores, 32GB+ RAM, SSD storage
+## Deployment Patterns
 
-## Technology Stack
+### 1. Development Environment
+```bash
+# Single-node development
+docker-compose -f docker-compose.dev.yml up
 
-### Core Technologies
-- **Language**: Python 3.9+ with asyncio
-- **Networking**: libp2p, gRPC, WebRTC
-- **ML Framework**: PyTorch, Transformers, scikit-learn
-- **Consensus**: Custom PBFT/Raft implementation
-- **Cryptography**: PyNaCl, Cryptography library, BLS signatures
-- **Storage**: SQLAlchemy (local), Redis (caching), IPFS (distributed)
+# Multi-node testing
+./scripts/deploy.sh development
+```
 
-### Infrastructure
-- **Containerization**: Docker with multi-stage builds
-- **Orchestration**: Kubernetes with custom operators
-- **API Framework**: FastAPI with automatic OpenAPI generation
-- **Database**: PostgreSQL for persistent state
+### 2. Production Environment
+```bash
+# Kubernetes deployment
+kubectl apply -f k8s/
 
-### Monitoring & Observability
-- **Metrics**: Prometheus with custom exporters
-- **Logging**: Structured JSON with correlation IDs (structlog)
-- **Tracing**: OpenTelemetry for distributed tracing
-- **Dashboards**: Grafana with mesh-specific panels
+# Docker Swarm deployment
+docker stack deploy -c docker-compose.prod.yml agent-mesh
+```
 
-### Development Tools
-- **Testing**: pytest with asyncio support, coverage reporting
-- **Documentation**: Sphinx with auto-generated API docs
-- **CI/CD**: GitHub Actions with comprehensive security scanning
-- **Quality**: Black, isort, flake8, mypy, bandit
+### 3. Hybrid Cloud
+- Multi-region deployment support
+- Cross-cloud connectivity
+- Edge computing integration
+- Mobile device participation
 
-## Implementation Status
+## Quality Assurance
 
-### Phase 1 (Current): Foundation ✅
-- ✅ Project structure and documentation
-- ✅ Development environment setup
-- ✅ Core module architecture defined
-- 🚧 **IMPLEMENTING**: Core source code
+### Testing Strategy
+1. **Unit Tests**: Individual component validation
+2. **Integration Tests**: Cross-component interaction
+3. **System Tests**: End-to-end functionality
+4. **Performance Tests**: Load and stress testing
+5. **Security Tests**: Penetration testing and audits
 
-### Phase 2: Core Functionality
-- ⏳ P2P networking implementation
-- ⏳ Consensus engine development
-- ⏳ Federated learning algorithms
-- ⏳ Security and encryption layer
+### Quality Gates
+- 85% minimum code coverage
+- All security scans pass
+- Performance benchmarks met
+- Documentation completeness
+- Peer review approval
 
-### Phase 3: Advanced Features
-- ⏳ Multi-agent coordination
-- ⏳ Privacy mechanisms
-- ⏳ Performance optimization
-- ⏳ Edge computing support
+### Monitoring and Observability
+- Real-time metrics collection
+- Distributed tracing
+- Alerting and notification
+- Performance analytics
+- Health monitoring
+
+## Future Enhancements
+
+### Planned Features
+1. **Advanced ML Algorithms**: Support for complex neural architectures
+2. **Cross-Chain Integration**: Blockchain interoperability
+3. **Quantum-Resistant Cryptography**: Post-quantum security
+4. **Advanced Privacy Techniques**: Fully homomorphic encryption
+5. **AI-Driven Optimization**: Self-optimizing network parameters
+
+### Research Areas
+- Adaptive consensus algorithms
+- Privacy-utility trade-offs
+- Decentralized governance
+- Energy-efficient protocols
+- Quantum security preparation
+
+## Development Guidelines
+
+### Code Organization
+```
+src/agent_mesh/
+├── core/           # Core system components
+├── federated/      # Federated learning algorithms
+├── coordination/   # Multi-agent coordination
+├── security/       # Security and cryptography
+└── utils/          # Shared utilities
+```
+
+### Contributing
+1. Follow PEP 8 style guidelines
+2. Write comprehensive tests
+3. Document all public APIs
+4. Security review for crypto code
+5. Performance testing for critical paths
+
+This architecture enables Agent Mesh to provide a robust, secure, and scalable platform for autonomous federated learning while maintaining the highest standards of privacy and performance.

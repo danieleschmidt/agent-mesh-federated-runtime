@@ -1,0 +1,59 @@
+version: '3.8'
+services:
+  agent-mesh-node-1:
+    build: .
+    ports:
+      - "8080:8080"
+      - "4001:4001"
+    environment:
+      - AGENT_MESH_NODE_ID=node-1
+      - AGENT_MESH_PORT=8080
+      - AGENT_MESH_P2P_PORT=4001
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - agent-mesh
+
+  agent-mesh-node-2:
+    build: .
+    ports:
+      - "8081:8080"
+      - "4002:4001"
+    environment:
+      - AGENT_MESH_NODE_ID=node-2
+      - AGENT_MESH_PORT=8080
+      - AGENT_MESH_P2P_PORT=4001
+      - AGENT_MESH_BOOTSTRAP=agent-mesh-node-1:4001
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - agent-mesh
+    depends_on:
+      - agent-mesh-node-1
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - agent-mesh
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - agent-mesh
+
+networks:
+  agent-mesh:
+    driver: bridge
+
+volumes:
+  grafana-storage:
