@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13.7-slim
 
 LABEL maintainer="Terragon Labs"
 LABEL version="1.0.0"
