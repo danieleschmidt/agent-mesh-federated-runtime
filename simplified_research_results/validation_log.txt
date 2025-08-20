@@ -1,0 +1,4 @@
+2025-08-20 03:36:39,590 - INFO - Simplified Research Validator initialized
+2025-08-20 03:36:39,590 - INFO - Starting comprehensive consensus research validation
+2025-08-20 03:36:39,600 - INFO - Analyzing experimental results
+2025-08-20 03:36:39,665 - INFO - Results saved to simplified_research_results/
