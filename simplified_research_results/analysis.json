@@ -1,0 +1,167 @@
+{
+  "summary": {
+    "total_experiments": 2000,
+    "algorithms_tested": 4,
+    "experiment_timestamp": "2025-08-20T03:36:39.600860"
+  },
+  "algorithm_comparison": {
+    "adaptive_ml_consensus": {
+      "total_experiments": 500,
+      "successful_experiments": 449,
+      "success_rate": 0.898,
+      "avg_convergence_time": 2.1431913136378373,
+      "std_convergence_time": 0.8809396020795791,
+      "avg_energy_consumption": 1.6193820906525236,
+      "std_energy_consumption": 0.685863780848314,
+      "avg_security_score": 0.9327996487416105,
+      "avg_rounds": 30.685968819599108
+    },
+    "neuromorphic_consensus": {
+      "total_experiments": 500,
+      "successful_experiments": 432,
+      "success_rate": 0.864,
+      "avg_convergence_time": 2.9673271429557264,
+      "std_convergence_time": 1.1554163034278713,
+      "avg_energy_consumption": 1.5449899993874807,
+      "std_energy_consumption": 0.6337460861668532,
+      "avg_security_score": 0.8734759813119013,
+      "avg_rounds": 37.729166666666664
+    },
+    "quantum_resistant_consensus": {
+      "total_experiments": 500,
+      "successful_experiments": 465,
+      "success_rate": 0.93,
+      "avg_convergence_time": 4.800045242599859,
+      "std_convergence_time": 1.99311251309484,
+      "avg_energy_consumption": 7.249859960489117,
+      "std_energy_consumption": 3.0078303579457204,
+      "avg_security_score": 0.9876857700486485,
+      "avg_rounds": 44.79354838709678
+    },
+    "traditional_bft_baseline": {
+      "total_experiments": 500,
+      "successful_experiments": 401,
+      "success_rate": 0.802,
+      "avg_convergence_time": 3.7229216428136396,
+      "std_convergence_time": 1.257388279387896,
+      "avg_energy_consumption": 3.697507310785011,
+      "std_energy_consumption": 1.263328944795845,
+      "avg_security_score": 0.6207999999999999,
+      "avg_rounds": 51.069825436408976
+    }
+  },
+  "statistical_tests": {
+    "adaptive_ml_consensus_vs_neuromorphic_consensus": {
+      "success_rate_difference": 0.03400000000000003,
+      "convergence_time_difference": 0.8241358293178891,
+      "effect_size_cohens_d": 0.8021681537678556,
+      "practical_significance": "large"
+    },
+    "adaptive_ml_consensus_vs_quantum_resistant_consensus": {
+      "success_rate_difference": 0.03200000000000003,
+      "convergence_time_difference": 2.656853928962022,
+      "effect_size_cohens_d": 1.7242573003804544,
+      "practical_significance": "large"
+    },
+    "adaptive_ml_consensus_vs_traditional_bft_baseline": {
+      "success_rate_difference": 0.09599999999999997,
+      "convergence_time_difference": 1.5797303291758023,
+      "effect_size_cohens_d": 1.4551601898417905,
+      "practical_significance": "large"
+    },
+    "neuromorphic_consensus_vs_quantum_resistant_consensus": {
+      "success_rate_difference": 0.06600000000000006,
+      "convergence_time_difference": 1.8327180996441328,
+      "effect_size_cohens_d": 1.1250357073200181,
+      "practical_significance": "large"
+    },
+    "neuromorphic_consensus_vs_traditional_bft_baseline": {
+      "success_rate_difference": 0.061999999999999944,
+      "convergence_time_difference": 0.7555944998579132,
+      "effect_size_cohens_d": 0.6257619089163357,
+      "practical_significance": "medium"
+    },
+    "quantum_resistant_consensus_vs_traditional_bft_baseline": {
+      "success_rate_difference": 0.128,
+      "convergence_time_difference": 1.0771235997862196,
+      "effect_size_cohens_d": 0.6463924283478677,
+      "practical_significance": "medium"
+    }
+  },
+  "performance_analysis": {
+    "rankings": {
+      "success_rate": [
+        [
+          "quantum_resistant_consensus",
+          0.93
+        ],
+        [
+          "adaptive_ml_consensus",
+          0.898
+        ],
+        [
+          "neuromorphic_consensus",
+          0.864
+        ],
+        [
+          "traditional_bft_baseline",
+          0.802
+        ]
+      ],
+      "avg_convergence_time": [
+        [
+          "adaptive_ml_consensus",
+          2.1431913136378373
+        ],
+        [
+          "neuromorphic_consensus",
+          2.9673271429557264
+        ],
+        [
+          "traditional_bft_baseline",
+          3.7229216428136396
+        ],
+        [
+          "quantum_resistant_consensus",
+          4.800045242599859
+        ]
+      ],
+      "avg_energy_consumption": [
+        [
+          "neuromorphic_consensus",
+          1.5449899993874807
+        ],
+        [
+          "adaptive_ml_consensus",
+          1.6193820906525236
+        ],
+        [
+          "traditional_bft_baseline",
+          3.697507310785011
+        ],
+        [
+          "quantum_resistant_consensus",
+          7.249859960489117
+        ]
+      ],
+      "avg_security_score": [
+        [
+          "quantum_resistant_consensus",
+          0.9876857700486485
+        ],
+        [
+          "adaptive_ml_consensus",
+          0.9327996487416105
+        ],
+        [
+          "neuromorphic_consensus",
+          0.8734759813119013
+        ],
+        [
+          "traditional_bft_baseline",
+          0.6207999999999999
+        ]
+      ]
+    }
+  }
+}
