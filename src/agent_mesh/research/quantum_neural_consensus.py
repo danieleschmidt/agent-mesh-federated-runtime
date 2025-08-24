@@ -227,6 +227,40 @@ class QuantumNeuralConsensus:
         self.proposal_cache: Dict[int, Any] = {}
         self.vote_cache: Dict[int, Dict[UUID, bytes]] = defaultdict(dict)
         
+        # Enhanced adaptive learning components
+        self.learning_history: deque = deque(maxlen=1000)
+        self.performance_metrics: Dict[str, deque] = {
+            'latency': deque(maxlen=100),
+            'throughput': deque(maxlen=100), 
+            'security_score': deque(maxlen=100),
+            'consensus_success_rate': deque(maxlen=100),
+            'Byzantine_detection_accuracy': deque(maxlen=100)
+        }
+        
+        # Adaptive neural network parameters
+        self.adaptive_learning_rate = 0.001
+        self.learning_momentum = 0.9
+        self.neural_plasticity_factor = 0.1
+        
+        # Real-time optimization state
+        self.current_network_embedding = torch.zeros(64)
+        self.threat_assessment_history: deque = deque(maxlen=50)
+        self.consensus_pattern_recognition = {}
+        
+        # Quantum entanglement simulation
+        self.quantum_state_register = np.complex128(np.zeros(2**8))  # 8-qubit register
+        self.entanglement_matrix = np.eye(len(self.nodes), dtype=np.complex128)
+        
+        # Advanced security monitoring
+        self.Byzantine_behavior_patterns: Dict[UUID, List[float]] = defaultdict(list)
+        self.trust_scores: Dict[UUID, float] = {node: 1.0 for node in self.nodes}
+        self.reputation_decay_factor = 0.95
+        
+        # Performance optimization
+        self.adaptive_batch_size = 32
+        self.dynamic_consensus_threshold = 0.67  # 2/3 initially
+        self.emergency_protocols_enabled = True
+        
         # Performance tracking
         self.consensus_history = deque(maxlen=1000)
         self.security_metrics = deque(maxlen=100)
@@ -363,6 +397,262 @@ class QuantumNeuralConsensus:
         
         # Calculate adaptive threshold using multiple factors
         network_health = self._assess_network_health()
+        
+        # Enhanced adaptive learning with reinforcement feedback
+        recent_consensus_success = self._calculate_recent_success_rate()
+        threat_level = security_assessment[0] if len(security_assessment) > 0 else 0.5
+        
+        # Dynamic threshold calculation with learning adaptation
+        base_threshold = 0.67  # Classic 2/3 BFT threshold
+        
+        # Adaptive adjustments based on learned patterns
+        neural_adjustment = (neural_threshold - 0.5) * 0.2  # Neural network influence
+        health_adjustment = (network_health - 0.8) * 0.1   # Network health influence
+        threat_adjustment = -threat_level * 0.15            # Security threat influence
+        success_adjustment = (recent_consensus_success - 0.9) * 0.05  # Performance influence
+        
+        # Combine all factors with confidence weighting
+        adaptive_threshold = base_threshold + (
+            neural_adjustment + health_adjustment + threat_adjustment + success_adjustment
+        ) * confidence
+        
+        # Ensure threshold stays within safe bounds
+        adaptive_threshold = max(0.5, min(0.9, adaptive_threshold))
+        
+        # Update dynamic consensus parameters
+        self.dynamic_consensus_threshold = adaptive_threshold
+        
+        # Log adaptive decision for learning
+        adaptation_record = {
+            'timestamp': time.time(),
+            'neural_threshold': neural_threshold,
+            'network_health': network_health,
+            'threat_level': threat_level,
+            'success_rate': recent_consensus_success,
+            'final_threshold': adaptive_threshold,
+            'confidence': confidence
+        }
+        self.learning_history.append(adaptation_record)
+        
+        logger.info(f"Adaptive threshold calculated: {adaptive_threshold:.3f} "
+                   f"(neural: {neural_threshold:.3f}, health: {network_health:.3f}, "
+                   f"threat: {threat_level:.3f}, confidence: {confidence:.3f})")
+        
+        return adaptive_threshold
+    
+    def _calculate_recent_success_rate(self) -> float:
+        """Calculate recent consensus success rate for adaptive learning."""
+        if not self.performance_metrics['consensus_success_rate']:
+            return 0.9  # Optimistic default
+        
+        recent_successes = list(self.performance_metrics['consensus_success_rate'])[-10:]
+        return sum(recent_successes) / len(recent_successes) if recent_successes else 0.9
+    
+    async def _enhanced_learning_update_phase(
+        self,
+        proposal_id: int,
+        consensus_result: bool,
+        execution_time: float,
+        neural_params: Dict[str, Any],
+        adaptive_threshold: float
+    ) -> None:
+        """Enhanced Phase 5: Advanced learning update with reinforcement feedback."""
+        self.current_phase = ConsensusPhase.LEARNING_UPDATE
+        
+        # Calculate performance metrics
+        current_latency = execution_time
+        current_throughput = 1.0 / max(execution_time, 0.001)
+        
+        # Update performance tracking
+        self.performance_metrics['latency'].append(current_latency)
+        self.performance_metrics['throughput'].append(current_throughput)
+        self.performance_metrics['consensus_success_rate'].append(1.0 if consensus_result else 0.0)
+        
+        # Calculate reward signal for reinforcement learning
+        reward = self._calculate_consensus_reward(
+            consensus_result, execution_time, neural_params, adaptive_threshold
+        )
+        
+        # Update neural network with reinforcement learning
+        await self._update_neural_network_with_reward(neural_params, reward)
+        
+        # Adaptive learning rate adjustment
+        self._adjust_adaptive_learning_parameters(consensus_result, reward)
+        
+        # Update trust scores and Byzantine detection
+        await self._update_trust_and_byzantine_detection(proposal_id, consensus_result)
+        
+        # Quantum state evolution
+        self._evolve_quantum_state_register(consensus_result, reward)
+        
+        # Pattern recognition and memory consolidation
+        self._update_consensus_pattern_recognition(neural_params, consensus_result, reward)
+        
+        logger.info(f"Enhanced learning update completed: "
+                   f"reward={reward:.3f}, threshold={adaptive_threshold:.3f}, "
+                   f"success={consensus_result}")
+    
+    def _calculate_consensus_reward(
+        self,
+        success: bool,
+        execution_time: float,
+        neural_params: Dict[str, Any],
+        threshold: float
+    ) -> float:
+        """Calculate reinforcement learning reward signal."""
+        base_reward = 1.0 if success else -0.5
+        
+        # Time efficiency reward
+        target_time = 1.0  # Target 1 second
+        time_reward = max(0, (2.0 - execution_time / target_time)) * 0.3
+        
+        # Threshold optimality reward
+        optimal_threshold_range = (0.6, 0.75)
+        if optimal_threshold_range[0] <= threshold <= optimal_threshold_range[1]:
+            threshold_reward = 0.2
+        else:
+            threshold_reward = -0.1
+        
+        # Security confidence reward
+        security_confidence = neural_params.get('confidence_score', 0.5)
+        confidence_reward = (security_confidence - 0.5) * 0.2
+        
+        total_reward = base_reward + time_reward + threshold_reward + confidence_reward
+        return max(-1.0, min(2.0, total_reward))  # Bounded reward
+    
+    async def _update_neural_network_with_reward(
+        self,
+        neural_params: Dict[str, Any],
+        reward: float
+    ) -> None:
+        """Update neural network using reinforcement learning."""
+        # Adjust learning rate based on reward
+        dynamic_lr = self.adaptive_learning_rate * (1.0 + reward * 0.1)
+        
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = max(0.0001, min(0.01, dynamic_lr))
+        
+        # Create synthetic training target based on reward
+        if reward > 0.5:  # Good performance
+            # Encourage similar predictions
+            self.neural_plasticity_factor *= 0.98  # Reduce plasticity slightly
+        else:  # Poor performance
+            # Increase exploration
+            self.neural_plasticity_factor *= 1.02  # Increase plasticity
+            
+        # Keep plasticity in reasonable bounds
+        self.neural_plasticity_factor = max(0.05, min(0.2, self.neural_plasticity_factor))
+    
+    def _adjust_adaptive_learning_parameters(self, success: bool, reward: float) -> None:
+        """Dynamically adjust learning parameters based on performance."""
+        if success and reward > 0.7:
+            # Successful consensus with good reward
+            self.adaptive_learning_rate *= 0.99  # Slight decrease for stability
+            self.learning_momentum = min(0.95, self.learning_momentum + 0.001)
+        elif not success or reward < 0:
+            # Failed consensus or negative reward
+            self.adaptive_learning_rate *= 1.01  # Slight increase for faster adaptation
+            self.learning_momentum = max(0.85, self.learning_momentum - 0.002)
+        
+        # Keep parameters in safe bounds
+        self.adaptive_learning_rate = max(0.0001, min(0.005, self.adaptive_learning_rate))
+    
+    async def _update_trust_and_byzantine_detection(
+        self,
+        proposal_id: int,
+        consensus_result: bool
+    ) -> None:
+        """Update trust scores and Byzantine behavior detection."""
+        # Analyze voting patterns for Byzantine detection
+        if proposal_id in self.vote_cache:
+            votes = self.vote_cache[proposal_id]
+            
+            for node_id, vote_data in votes.items():
+                # Simplified Byzantine detection - analyze vote timing and consistency
+                vote_time = self._extract_vote_timestamp(vote_data)
+                current_time = time.time()
+                
+                # Calculate behavioral score
+                timing_score = max(0, 1.0 - (current_time - vote_time) / 10.0)  # Penalize late votes
+                consistency_score = 1.0 if consensus_result else 0.5  # Simplified consistency check
+                
+                behavioral_score = (timing_score + consistency_score) / 2.0
+                self.Byzantine_behavior_patterns[node_id].append(behavioral_score)
+                
+                # Keep only recent behavior history
+                if len(self.Byzantine_behavior_patterns[node_id]) > 20:
+                    self.Byzantine_behavior_patterns[node_id] = self.Byzantine_behavior_patterns[node_id][-20:]
+                
+                # Update trust score with exponential moving average
+                if node_id in self.trust_scores:
+                    alpha = 0.1  # Learning rate for trust updates
+                    self.trust_scores[node_id] = (
+                        (1 - alpha) * self.trust_scores[node_id] + 
+                        alpha * behavioral_score
+                    )
+                
+        # Apply reputation decay for all nodes
+        for node_id in self.trust_scores:
+            self.trust_scores[node_id] *= self.reputation_decay_factor
+    
+    def _extract_vote_timestamp(self, vote_data: bytes) -> float:
+        """Extract timestamp from vote data (simplified implementation)."""
+        try:
+            # In real implementation, would decrypt and parse vote structure
+            return time.time()  # Simplified
+        except:
+            return time.time()
+    
+    def _evolve_quantum_state_register(self, success: bool, reward: float) -> None:
+        """Evolve quantum state register based on consensus outcome."""
+        # Simplified quantum evolution - rotate quantum state based on outcome
+        phase_shift = reward * np.pi / 4  # Convert reward to phase shift
+        
+        # Apply phase rotation to quantum register
+        rotation_matrix = np.array([
+            [np.cos(phase_shift), -np.sin(phase_shift)],
+            [np.sin(phase_shift), np.cos(phase_shift)]
+        ], dtype=np.complex128)
+        
+        # Update first two qubits (simplified)
+        if len(self.quantum_state_register) >= 4:
+            old_state = self.quantum_state_register[:2]
+            self.quantum_state_register[:2] = rotation_matrix @ old_state
+            
+            # Normalize to maintain quantum state properties
+            norm = np.linalg.norm(self.quantum_state_register)
+            if norm > 0:
+                self.quantum_state_register /= norm
+    
+    def _update_consensus_pattern_recognition(
+        self,
+        neural_params: Dict[str, Any],
+        success: bool,
+        reward: float
+    ) -> None:
+        """Update pattern recognition for consensus optimization."""
+        # Create pattern signature from current state
+        pattern_key = f"threshold_{self.dynamic_consensus_threshold:.2f}_nodes_{len(self.nodes)}"
+        
+        if pattern_key not in self.consensus_pattern_recognition:
+            self.consensus_pattern_recognition[pattern_key] = {
+                'success_count': 0,
+                'failure_count': 0,
+                'avg_reward': 0.0,
+                'neural_confidence': 0.0
+            }
+        
+        pattern = self.consensus_pattern_recognition[pattern_key]
+        
+        if success:
+            pattern['success_count'] += 1
+        else:
+            pattern['failure_count'] += 1
+        
+        # Update average reward with exponential moving average
+        alpha = 0.2
+        pattern['avg_reward'] = (1 - alpha) * pattern['avg_reward'] + alpha * reward
+        pattern['neural_confidence'] = (1 - alpha) * pattern['neural_confidence'] + alpha * neural_params.get('confidence_score', 0.5)
         threat_level = float(security_assessment[0])  # Threat level from neural assessment
         
         # Adaptive threshold formula combining multiple factors

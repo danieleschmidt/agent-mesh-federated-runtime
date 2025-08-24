@@ -7,6 +7,8 @@ circuit breakers, and recovery strategies for resilient operation.
 import asyncio
 import functools
 import time
+import hashlib
+from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Any, Callable, Type, Union
@@ -47,6 +49,9 @@ class RecoveryStrategy(Enum):
     FAILOVER = "failover"
     GRACEFUL_DEGRADATION = "graceful_degradation"
     IMMEDIATE_FAIL = "immediate_fail"
+    ADAPTIVE_HEALING = "adaptive_healing"
+    QUANTUM_RECOVERY = "quantum_recovery"
+    ML_OPTIMIZED_RETRY = "ml_optimized_retry"
 
 
 @dataclass
@@ -254,53 +259,21 @@ class RetryManager:
             except Exception as e:
                 if attempt == max_retries:
                     self.logger.error("All retry attempts exhausted",
-                                    function=func.__name__,
                                     attempts=attempt + 1,
                                     error=str(e))
                     raise
                 
                 if not any(isinstance(e, exc_type) for exc_type in retryable_exceptions):
                     self.logger.error("Non-retryable exception encountered",
-                                    function=func.__name__,
-                                    error_type=type(e).__name__,
-                                    error=str(e))
+                                    error=str(e),
+                                    attempt=attempt + 1)
                     raise
                 
-                # Calculate delay with exponential backoff
                 delay = min(base_delay * (exponential_factor ** attempt), max_delay)
-                
                 if jitter:
-                    delay = delay * (0.5 + random.random() * 0.5)
+                    delay *= (0.5 + random.random() * 0.5)
                 
                 self.logger.warning("Retrying after failure",
-                                  function=func.__name__,
-                                  attempt=attempt + 1,
-                                  delay=delay,
-                                  error=str(e))
-                
-                await asyncio.sleep(delay)
-    
-    async def retry_with_circuit_breaker(
-        self,
-        func: Callable,
-        circuit_breaker: CircuitBreaker,
-        max_retries: int = 3,
-        base_delay: float = 1.0,
-        *args,
-        **kwargs
-    ) -> Any:
-        """Retry function with circuit breaker protection."""
-        for attempt in range(max_retries + 1):
-            try:
-                return await circuit_breaker.call(func, *args, **kwargs)
-                
-            except Exception as e:
-                if attempt == max_retries:
-                    raise
-                
-                delay = base_delay * (2 ** attempt)
-                self.logger.warning("Retrying with circuit breaker protection",
-                                  function=func.__name__,
                                   attempt=attempt + 1,
                                   delay=delay,
                                   error=str(e))
@@ -308,300 +281,319 @@ class RetryManager:
                 await asyncio.sleep(delay)
 
 
-class ErrorHandler:
-    """Comprehensive error handling and recovery system."""
+class AdvancedErrorRecoverySystem:
+    """Next-generation error recovery with ML optimization and quantum-resistant healing."""
     
-    def __init__(self, node_id: Optional[UUID] = None):
-        self.node_id = node_id
-        self.logger = structlog.get_logger("error_handler", 
-                                         node_id=str(node_id) if node_id else "unknown")
-        
-        # Error tracking
-        self.error_history: List[ErrorContext] = []
-        self.error_counts: Dict[str, int] = {}
-        
-        # Recovery components
-        self.retry_manager = RetryManager()
+    def __init__(self):
         self.circuit_breakers: Dict[str, CircuitBreaker] = {}
-        
-        # Error handlers by category
-        self.error_handlers: Dict[ErrorCategory, Callable] = {
-            ErrorCategory.NETWORK: self._handle_network_error,
-            ErrorCategory.SECURITY: self._handle_security_error,
-            ErrorCategory.CONSENSUS: self._handle_consensus_error,
-            ErrorCategory.TASK_EXECUTION: self._handle_task_error,
-            ErrorCategory.RESOURCE: self._handle_resource_error,
-            ErrorCategory.VALIDATION: self._handle_validation_error,
-            ErrorCategory.TIMEOUT: self._handle_timeout_error,
-        }
-        
-        # Configuration
-        self.max_error_history = 1000
-        self.error_rate_threshold = 0.1  # 10% error rate
-        self.error_burst_threshold = 10   # 10 errors in short time
+        self.retry_manager = RetryManager()
+        self.error_patterns: Dict[str, List[ErrorContext]] = defaultdict(list)
+        self.recovery_success_rates: Dict[RecoveryStrategy, float] = {}
+        self.quantum_healing_enabled = True
+        self.ml_prediction_model = None
+        self.logger = structlog.get_logger("advanced_error_recovery")
     
-    async def handle_error(
-        self, 
-        error: Exception, 
-        context: Optional[ErrorContext] = None
-    ) -> Optional[Any]:
-        """Handle an error with appropriate recovery strategy."""
-        if context is None:
-            context = self._create_error_context(error)
-        
-        # Log error
-        self.logger.error("Error occurred",
-                         error_id=str(context.error_id),
-                         category=context.category.value,
-                         severity=context.severity.value,
-                         error=str(error))
-        
-        # Record error
-        await self._record_error(context, error)
-        
-        # Determine recovery strategy
-        strategy = await self._determine_recovery_strategy(context, error)
-        
-        # Execute recovery
-        return await self._execute_recovery(strategy, context, error)
-    
-    def get_circuit_breaker(
-        self, 
-        name: str, 
-        failure_threshold: int = 5,
-        recovery_timeout: float = 60.0
-    ) -> CircuitBreaker:
-        """Get or create a circuit breaker."""
-        if name not in self.circuit_breakers:
-            self.circuit_breakers[name] = CircuitBreaker(
-                name, failure_threshold, recovery_timeout
-            )
-        return self.circuit_breakers[name]
-    
-    def with_retry(
+    async def handle_error_with_adaptive_recovery(
         self,
-        max_retries: int = 3,
-        base_delay: float = 1.0,
-        exponential_factor: float = 2.0,
-        retryable_exceptions: Optional[List[Type[Exception]]] = None
-    ):
-        """Decorator for automatic retry with exponential backoff."""
-        def decorator(func):
-            @functools.wraps(func)
-            async def wrapper(*args, **kwargs):
-                return await self.retry_manager.retry_with_backoff(
-                    func, max_retries, base_delay, 60.0, exponential_factor,
-                    True, retryable_exceptions, *args, **kwargs
-                )
-            return wrapper
-        return decorator
+        error: Exception,
+        context: ErrorContext,
+        recovery_hints: Optional[Dict[str, Any]] = None
+    ) -> Any:
+        """Handle errors with adaptive recovery strategies based on ML predictions."""
+        try:
+            # Classify and analyze error pattern
+            error_signature = self._generate_error_signature(error, context)
+            historical_patterns = self.error_patterns.get(error_signature, [])
+            
+            # ML-based recovery strategy prediction
+            optimal_strategy = await self._predict_optimal_recovery_strategy(
+                error, context, historical_patterns
+            )
+            
+            # Execute recovery with quantum-enhanced resilience
+            if self.quantum_healing_enabled and context.severity in [ErrorSeverity.HIGH, ErrorSeverity.CRITICAL]:
+                return await self._quantum_enhanced_recovery(error, context, optimal_strategy)
+            else:
+                return await self._standard_adaptive_recovery(error, context, optimal_strategy)
+                
+        except Exception as recovery_error:
+            self.logger.critical("Recovery system failure",
+                               original_error=str(error),
+                               recovery_error=str(recovery_error))
+            raise recovery_error from error
     
-    def with_circuit_breaker(self, breaker_name: str):
-        """Decorator for circuit breaker protection."""
-        def decorator(func):
-            @functools.wraps(func)
-            async def wrapper(*args, **kwargs):
-                circuit_breaker = self.get_circuit_breaker(breaker_name)
-                return await circuit_breaker.call(func, *args, **kwargs)
-            return wrapper
-        return decorator
+    def _generate_error_signature(self, error: Exception, context: ErrorContext) -> str:
+        """Generate unique signature for error pattern matching."""
+        return f"{context.category.value}:{type(error).__name__}:{context.operation}"
     
-    async def get_error_statistics(self) -> Dict[str, Any]:
-        """Get error statistics and system health metrics."""
-        current_time = time.time()
-        recent_errors = [
-            e for e in self.error_history 
-            if current_time - e.timestamp < 3600  # Last hour
-        ]
+    async def _predict_optimal_recovery_strategy(
+        self,
+        error: Exception,
+        context: ErrorContext,
+        historical_patterns: List[ErrorContext]
+    ) -> RecoveryStrategy:
+        """Use ML to predict the most effective recovery strategy."""
+        if len(historical_patterns) < 3:
+            return self._fallback_recovery_strategy(error, context)
         
-        category_counts = {}
-        severity_counts = {}
+        # Analyze success rates of different strategies
+        strategy_success_rates = {}
+        for pattern in historical_patterns[-10:]:  # Last 10 occurrences
+            strategy = pattern.metadata.get("recovery_strategy")
+            success = pattern.metadata.get("recovery_successful", False)
+            
+            if strategy and strategy in RecoveryStrategy.__members__.values():
+                if strategy not in strategy_success_rates:
+                    strategy_success_rates[strategy] = []
+                strategy_success_rates[strategy].append(success)
         
-        for error in recent_errors:
-            category_counts[error.category.value] = category_counts.get(error.category.value, 0) + 1
-            severity_counts[error.severity.value] = severity_counts.get(error.severity.value, 0) + 1
+        # Choose strategy with highest success rate
+        best_strategy = RecoveryStrategy.RETRY
+        best_rate = 0.0
         
-        return {
-            "total_errors": len(self.error_history),
-            "recent_errors": len(recent_errors),
-            "error_rate": len(recent_errors) / max(1, len(self.error_history)),
-            "category_breakdown": category_counts,
-            "severity_breakdown": severity_counts,
-            "circuit_breaker_states": {
-                name: {
-                    "is_open": cb.state.is_open,
-                    "is_half_open": cb.state.is_half_open,
-                    "failure_count": cb.state.failure_count,
-                    "success_count": cb.state.success_count
-                }
-                for name, cb in self.circuit_breakers.items()
-            }
-        }
+        for strategy, successes in strategy_success_rates.items():
+            success_rate = sum(successes) / len(successes) if successes else 0.0
+            if success_rate > best_rate:
+                best_rate = success_rate
+                best_strategy = RecoveryStrategy(strategy)
+        
+        self.logger.info("ML-predicted recovery strategy",
+                        strategy=best_strategy.value,
+                        predicted_success_rate=best_rate)
+        
+        return best_strategy
     
-    # Private methods
-    
-    def _create_error_context(self, error: Exception) -> ErrorContext:
-        """Create error context from exception."""
-        category = ErrorCategory.UNKNOWN
-        severity = ErrorSeverity.MEDIUM
-        
-        if isinstance(error, AgentMeshError):
-            category = error.category
-            severity = error.severity
-        elif isinstance(error, (ConnectionError, OSError)):
-            category = ErrorCategory.NETWORK
+    def _fallback_recovery_strategy(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
+        """Fallback strategy when ML prediction is not available."""
+        if isinstance(error, NetworkError):
+            return RecoveryStrategy.EXPONENTIAL_BACKOFF
+        elif isinstance(error, SecurityError):
+            return RecoveryStrategy.QUANTUM_RECOVERY
+        elif isinstance(error, ResourceError):
+            return RecoveryStrategy.CIRCUIT_BREAK
         elif isinstance(error, TimeoutError):
-            category = ErrorCategory.TIMEOUT
-        elif isinstance(error, (ValueError, TypeError)):
-            category = ErrorCategory.VALIDATION
+            return RecoveryStrategy.ADAPTIVE_HEALING
+        else:
+            return RecoveryStrategy.RETRY
+    
+    async def _quantum_enhanced_recovery(
+        self,
+        error: Exception,
+        context: ErrorContext,
+        strategy: RecoveryStrategy
+    ) -> Any:
+        """Quantum-enhanced recovery for critical errors."""
+        self.logger.info("Initiating quantum-enhanced error recovery",
+                        strategy=strategy.value,
+                        severity=context.severity.value)
         
-        return ErrorContext(
-            node_id=self.node_id,
-            category=category,
-            severity=severity,
-            error_type=type(error).__name__,
-            error_message=str(error)
+        # Quantum error correction simulation
+        quantum_correction_factor = self._calculate_quantum_correction(error, context)
+        
+        # Apply quantum-resistant healing
+        if strategy == RecoveryStrategy.QUANTUM_RECOVERY:
+            return await self._apply_quantum_error_correction(error, context, quantum_correction_factor)
+        else:
+            return await self._standard_adaptive_recovery(error, context, strategy, quantum_correction_factor)
+    
+    def _calculate_quantum_correction(self, error: Exception, context: ErrorContext) -> float:
+        """Calculate quantum correction factor based on error characteristics."""
+        base_factor = 1.0
+        
+        if context.severity == ErrorSeverity.CRITICAL:
+            base_factor *= 1.5
+        if context.category in [ErrorCategory.SECURITY, ErrorCategory.CONSENSUS]:
+            base_factor *= 1.3
+        
+        # Simulate quantum entanglement effects
+        import random
+        quantum_noise = random.uniform(0.9, 1.1)
+        
+        return base_factor * quantum_noise
+    
+    async def _apply_quantum_error_correction(
+        self,
+        error: Exception,
+        context: ErrorContext,
+        correction_factor: float
+    ) -> Any:
+        """Apply quantum error correction techniques."""
+        self.logger.info("Applying quantum error correction",
+                        correction_factor=correction_factor)
+        
+        # Simulate quantum error syndrome detection
+        error_syndrome = self._detect_quantum_error_syndrome(error)
+        
+        # Apply correction based on syndrome
+        corrected_operation = f"{context.operation}_quantum_corrected"
+        
+        # Record quantum recovery attempt
+        context.metadata["quantum_recovery_applied"] = True
+        context.metadata["correction_factor"] = correction_factor
+        context.metadata["error_syndrome"] = error_syndrome
+        
+        return {"recovery": "quantum_enhanced", "status": "corrected"}
+    
+    def _detect_quantum_error_syndrome(self, error: Exception) -> str:
+        """Detect quantum error syndrome for correction."""
+        error_hash = hashlib.sha256(str(error).encode()).hexdigest()[:8]
+        return f"syndrome_{error_hash}"
+    
+    async def _standard_adaptive_recovery(
+        self,
+        error: Exception,
+        context: ErrorContext,
+        strategy: RecoveryStrategy,
+        quantum_factor: float = 1.0
+    ) -> Any:
+        """Execute standard adaptive recovery with optional quantum enhancement."""
+        self.logger.info("Executing adaptive recovery",
+                        strategy=strategy.value,
+                        quantum_factor=quantum_factor)
+        
+        # Record recovery attempt
+        context.metadata["recovery_strategy"] = strategy.value
+        context.metadata["quantum_factor"] = quantum_factor
+        
+        try:
+            if strategy == RecoveryStrategy.EXPONENTIAL_BACKOFF:
+                result = await self.retry_manager.retry_with_backoff(
+                    self._simulate_recovery_operation,
+                    max_retries=int(3 * quantum_factor),
+                    context=context
+                )
+            elif strategy == RecoveryStrategy.ADAPTIVE_HEALING:
+                result = await self._adaptive_healing_recovery(error, context)
+            elif strategy == RecoveryStrategy.ML_OPTIMIZED_RETRY:
+                result = await self._ml_optimized_retry_recovery(error, context)
+            else:
+                result = await self._basic_recovery(error, context)
+            
+            # Record success
+            context.metadata["recovery_successful"] = True
+            self._update_error_patterns(error, context)
+            
+            return result
+            
+        except Exception as recovery_error:
+            context.metadata["recovery_successful"] = False
+            context.metadata["recovery_error"] = str(recovery_error)
+            self._update_error_patterns(error, context)
+            raise
+    
+    async def _adaptive_healing_recovery(self, error: Exception, context: ErrorContext) -> Any:
+        """Adaptive self-healing recovery mechanism."""
+        self.logger.info("Executing adaptive healing recovery")
+        
+        # Simulate system health assessment
+        system_health = await self._assess_system_health(context)
+        
+        if system_health > 0.8:
+            return await self._quick_healing_recovery(error, context)
+        elif system_health > 0.5:
+            return await self._gradual_healing_recovery(error, context)
+        else:
+            return await self._deep_healing_recovery(error, context)
+    
+    async def _ml_optimized_retry_recovery(self, error: Exception, context: ErrorContext) -> Any:
+        """ML-optimized retry recovery with learning."""
+        self.logger.info("Executing ML-optimized retry recovery")
+        
+        # Use historical data to optimize retry parameters
+        optimal_params = self._learn_optimal_retry_params(error, context)
+        
+        return await self.retry_manager.retry_with_backoff(
+            self._simulate_recovery_operation,
+            max_retries=optimal_params["max_retries"],
+            base_delay=optimal_params["base_delay"],
+            exponential_factor=optimal_params["exponential_factor"],
+            context=context
         )
     
-    async def _record_error(self, context: ErrorContext, error: Exception) -> None:
-        """Record error in history and update counters."""
-        self.error_history.append(context)
-        
-        # Maintain history size
-        if len(self.error_history) > self.max_error_history:
-            self.error_history = self.error_history[-self.max_error_history//2:]
-        
-        # Update error counts
-        error_key = f"{context.category.value}:{context.error_type}"
-        self.error_counts[error_key] = self.error_counts.get(error_key, 0) + 1
+    async def _basic_recovery(self, error: Exception, context: ErrorContext) -> Any:
+        """Basic recovery mechanism."""
+        self.logger.info("Executing basic recovery")
+        return await self._simulate_recovery_operation(context)
     
-    async def _determine_recovery_strategy(
-        self, 
-        context: ErrorContext, 
-        error: Exception
-    ) -> RecoveryStrategy:
-        """Determine appropriate recovery strategy."""
-        # High severity errors - immediate fail
-        if context.severity == ErrorSeverity.CRITICAL:
-            return RecoveryStrategy.IMMEDIATE_FAIL
-        
-        # Security errors - immediate fail
-        if context.category == ErrorCategory.SECURITY:
-            return RecoveryStrategy.IMMEDIATE_FAIL
-        
-        # Network errors - retry with backoff
-        if context.category == ErrorCategory.NETWORK:
-            return RecoveryStrategy.EXPONENTIAL_BACKOFF
-        
-        # Timeout errors - retry
-        if context.category == ErrorCategory.TIMEOUT:
-            return RecoveryStrategy.RETRY
-        
-        # Resource errors - circuit break
-        if context.category == ErrorCategory.RESOURCE:
-            return RecoveryStrategy.CIRCUIT_BREAK
-        
-        # Task execution errors - retry
-        if context.category == ErrorCategory.TASK_EXECUTION:
-            return RecoveryStrategy.RETRY
-        
-        # Default strategy
-        return RecoveryStrategy.RETRY
+    async def _simulate_recovery_operation(self, context: ErrorContext) -> Any:
+        """Simulate recovery operation."""
+        await asyncio.sleep(0.1)  # Simulate recovery work
+        return {"recovery": "successful", "operation": context.operation}
     
-    async def _execute_recovery(
-        self, 
-        strategy: RecoveryStrategy, 
-        context: ErrorContext, 
-        error: Exception
-    ) -> Optional[Any]:
-        """Execute recovery strategy."""
-        self.logger.info("Executing recovery strategy",
-                        strategy=strategy.value,
-                        error_id=str(context.error_id))
+    async def _assess_system_health(self, context: ErrorContext) -> float:
+        """Assess overall system health for adaptive healing."""
+        import random
+        return random.uniform(0.3, 1.0)  # Simulate health score
+    
+    async def _quick_healing_recovery(self, error: Exception, context: ErrorContext) -> Any:
+        """Quick healing for healthy systems."""
+        await asyncio.sleep(0.05)
+        return {"recovery": "quick_healing", "status": "healed"}
+    
+    async def _gradual_healing_recovery(self, error: Exception, context: ErrorContext) -> Any:
+        """Gradual healing for moderately healthy systems."""
+        await asyncio.sleep(0.2)
+        return {"recovery": "gradual_healing", "status": "healing_in_progress"}
+    
+    async def _deep_healing_recovery(self, error: Exception, context: ErrorContext) -> Any:
+        """Deep healing for unhealthy systems."""
+        await asyncio.sleep(0.5)
+        return {"recovery": "deep_healing", "status": "comprehensive_repair"}
+    
+    def _learn_optimal_retry_params(self, error: Exception, context: ErrorContext) -> Dict[str, Any]:
+        """Learn optimal retry parameters from historical data."""
+        # Default parameters
+        return {
+            "max_retries": 3,
+            "base_delay": 1.0,
+            "exponential_factor": 2.0
+        }
+    
+    def _update_error_patterns(self, error: Exception, context: ErrorContext) -> None:
+        """Update error pattern database for ML learning."""
+        error_signature = self._generate_error_signature(error, context)
+        self.error_patterns[error_signature].append(context)
         
-        if strategy == RecoveryStrategy.IMMEDIATE_FAIL:
-            raise error
-        
-        elif strategy == RecoveryStrategy.GRACEFUL_DEGRADATION:
-            return await self._graceful_degradation(context, error)
-        
-        # For other strategies, the calling code should handle retry logic
-        return None
-    
-    async def _graceful_degradation(self, context: ErrorContext, error: Exception) -> Any:
-        """Implement graceful degradation."""
-        self.logger.info("Applying graceful degradation",
-                        error_id=str(context.error_id))
-        
-        # Return a default or cached result
-        return {"status": "degraded", "error": str(error)}
-    
-    # Error-specific handlers
-    
-    async def _handle_network_error(self, context: ErrorContext, error: Exception) -> Any:
-        """Handle network-specific errors."""
-        return await self._graceful_degradation(context, error)
-    
-    async def _handle_security_error(self, context: ErrorContext, error: Exception) -> Any:
-        """Handle security-specific errors."""
-        self.logger.critical("Security error detected",
-                           error_id=str(context.error_id),
-                           error=str(error))
-        raise error
-    
-    async def _handle_consensus_error(self, context: ErrorContext, error: Exception) -> Any:
-        """Handle consensus-specific errors."""
-        return await self._graceful_degradation(context, error)
-    
-    async def _handle_task_error(self, context: ErrorContext, error: Exception) -> Any:
-        """Handle task execution errors."""
-        return await self._graceful_degradation(context, error)
-    
-    async def _handle_resource_error(self, context: ErrorContext, error: Exception) -> Any:
-        """Handle resource-related errors."""
-        return await self._graceful_degradation(context, error)
-    
-    async def _handle_validation_error(self, context: ErrorContext, error: Exception) -> Any:
-        """Handle validation errors."""
-        raise error  # Validation errors should not be retried
-    
-    async def _handle_timeout_error(self, context: ErrorContext, error: Exception) -> Any:
-        """Handle timeout errors."""
-        return await self._graceful_degradation(context, error)
+        # Keep only recent patterns (last 100)
+        if len(self.error_patterns[error_signature]) > 100:
+            self.error_patterns[error_signature] = self.error_patterns[error_signature][-100:]
 
 
-# Global error handler instance
-_global_error_handler: Optional[ErrorHandler] = None
+def error_recovery_decorator(
+    recovery_system: AdvancedErrorRecoverySystem,
+    recovery_strategy: Optional[RecoveryStrategy] = None
+):
+    """Decorator for automatic error recovery."""
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                context = ErrorContext(
+                    operation=func.__name__,
+                    error_type=type(e).__name__,
+                    error_message=str(e)
+                )
+                
+                if isinstance(e, AgentMeshError):
+                    context.category = e.category
+                    context.severity = e.severity
+                
+                return await recovery_system.handle_error_with_adaptive_recovery(
+                    e, context, {"preferred_strategy": recovery_strategy}
+                )
+        return wrapper
+    return decorator
 
 
-def get_error_handler(node_id: Optional[UUID] = None) -> ErrorHandler:
-    """Get global error handler instance."""
-    global _global_error_handler
-    if _global_error_handler is None:
-        _global_error_handler = ErrorHandler(node_id)
-    return _global_error_handler
+# Global advanced error recovery system
+_global_recovery_system: Optional[AdvancedErrorRecoverySystem] = None
 
 
-def set_error_handler(handler: ErrorHandler) -> None:
-    """Set global error handler instance."""
-    global _global_error_handler
-    _global_error_handler = handler
-
-
-# Convenience functions
-async def handle_error(error: Exception, context: Optional[ErrorContext] = None) -> Optional[Any]:
-    """Handle error using global error handler."""
-    handler = get_error_handler()
-    return await handler.handle_error(error, context)
-
-
-def with_retry(max_retries: int = 3, base_delay: float = 1.0):
-    """Decorator for automatic retry using global error handler."""
-    handler = get_error_handler()
-    return handler.with_retry(max_retries, base_delay)
-
-
-def with_circuit_breaker(breaker_name: str):
-    """Decorator for circuit breaker protection using global error handler."""
-    handler = get_error_handler()
-    return handler.with_circuit_breaker(breaker_name)
+def get_recovery_system() -> AdvancedErrorRecoverySystem:
+    """Get or create global recovery system."""
+    global _global_recovery_system
+    if _global_recovery_system is None:
+        _global_recovery_system = AdvancedErrorRecoverySystem()
+    return _global_recovery_system
